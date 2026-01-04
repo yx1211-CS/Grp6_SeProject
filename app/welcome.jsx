@@ -1,10 +1,10 @@
+import { useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native'
-import ScreenWrapper from '../component/ScreenWrapper'
-import { hp, wp } from '../helpers/common'
-import { theme } from '../constants/theme'
 import Button from '../component/Button'
-import { useRouter } from 'expo-router'
+import ScreenWrapper from '../component/ScreenWrapper'
+import { theme } from '../constants/theme'
+import { hp, wp } from '../helpers/common'
 
 const Welcome = () => {
     const router = useRouter();
@@ -26,7 +26,7 @@ const Welcome = () => {
             {/*footer*/}
             <View style={styles.footer}>
                 <Button 
-                    title="Getting Started"
+                    title="Create Account"
                     buttonStyle={{marginHorizontal: wp(3)}}
                     onPress={()=> router.push('signUp')}
                 />
