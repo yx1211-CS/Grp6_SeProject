@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native'
-import Button from '../component/Button'
-import ScreenWrapper from '../component/ScreenWrapper'
+import Button from '../components/Button'
+import ScreenWrapper from '../components/ScreenWrapper'
 import { theme } from '../constants/theme'
 import { hp, wp } from '../helpers/common'
 
