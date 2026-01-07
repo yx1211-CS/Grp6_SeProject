@@ -21,7 +21,8 @@ import Delete from './Delete'
 import Logout from './Logout'
 import Image from './Image'
 import Video from './Video'
-import { theme } from '../../../constants/theme'
+import { theme } from '../../constants/theme'
+
 
 const icons = {
     home: Home,

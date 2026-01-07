@@ -1,8 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
-import React from 'react'
-import Icon from '../assets/images/icons'
+import { Pressable, StyleSheet } from 'react-native'
+import Icon from '../assets/icons'
 import { theme } from '../constants/theme'
-import { useRouter } from 'expo-router'
 
 const BackButton = ({size=26, router}) => {
   return (
