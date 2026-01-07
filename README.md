@@ -33,5 +33,5 @@ Always pull the latest changes from the remote repository:
 
 2. After you finish a feature:
 - git add .
-- git commit -m "feat: Added login screen"  # Replace with your message
+- git commit -m "feat: Added login screen"   // # Replace with your message
 - git push
