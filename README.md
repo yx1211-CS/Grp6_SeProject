@@ -1,50 +1,49 @@
-# Welcome to your Expo app 👋
+Before you begin, ensure you have met the following requirements:
+- **[Node.js](https://nodejs.org/)** installed (LTS version recommended).
+- **[VS Code](https://code.visualstudio.com/)** installed.
+- **Expo Go** app installed on your mobile device (available on App Store / Google Play).
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+---
 
-## Get started
+## 🚀 Getting Started (How to Run)
 
-1. Install dependencies
+If you are setting up the project for the first time, please follow these steps:
 
-   ```bash
-   npm install
-   ```
+### 1. Clone the Repository
+Open your terminal and run:
 
-2. Start the app
+git clone [https://github.com/yx1211-CS/Grp6_SeProject.git](https://github.com/yx1211-CS/Grp6_SeProject.git)
+cd Grp6_SeProject
+npm install
 
-   ```bash
-   npx expo start
-   ```
+npx expo start
 
-In the output, you'll find options to open the app in a
+## Preview on Mobile
+A QR Code will appear in your terminal.
+Android: Scan the QR code using the Expo Go app.
+iOS: Scan the QR code using the default Camera app.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Collaboration Workflow (Git Guide)
+To avoid merge conflicts, please follow this workflow strictly:
 
-## Get a fresh project
+1. Before you start coding
+Always pull the latest changes from the remote repository:
+git pull
 
-When you're ready, run:
+2. After you finish a feature:
+git add .
+git commit -m "feat: Added login screen"  # Replace with your message
+git push
 
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Project Structure
+Grp6_SeProject/
+├── app/                 # Main application screens (Expo Router)
+├── assets/              
+│   ├── icons/           # JSX Icon components
+│   └── images/          # PNG/JPG assets
+├── components/          # Reusable UI components
+├── constants/           # Theme colors, fonts, etc.
+├── contexts/            # React Context (Auth, etc.)
+├── lib/                 # Supabase client configuration
+└── README.md            # Project documentation
