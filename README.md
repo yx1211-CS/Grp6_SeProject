@@ -28,21 +28,9 @@ To avoid merge conflicts, please follow this workflow strictly:
 
 1. Before you start coding
 Always pull the latest changes from the remote repository:
-git pull
+- git pull
 
 2. After you finish a feature:
-git add .
-git commit -m "feat: Added login screen"  # Replace with your message
-git push
-
-Project Structure
-Grp6_SeProject/
-├── app/                 # Main application screens (Expo Router)
-├── assets/              
-│   ├── icons/           # JSX Icon components
-│   └── images/          # PNG/JPG assets
-├── components/          # Reusable UI components
-├── constants/           # Theme colors, fonts, etc.
-├── contexts/            # React Context (Auth, etc.)
-├── lib/                 # Supabase client configuration
-└── README.md            # Project documentation
+- git add .
+- git commit -m "feat: Added login screen"  # Replace with your message
+- git push
