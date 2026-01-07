@@ -23,7 +23,7 @@ Open your terminal and run:
 - iOS: Scan the QR code using the default Camera app.
 
 
-##Collaboration Workflow (Git Guide)
+## Collaboration Workflow (Git Guide)
 - To avoid merge conflicts, please follow this workflow strictly:
 
 1. Before you start coding
