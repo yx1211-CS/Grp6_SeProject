@@ -5,7 +5,8 @@ import ScreenWrapper from '../../components/ScreenWrapper'
 const newPost = () => {
   return (
     <ScreenWrapper>
-      <Text>newPost</Text>
+      
+      <Header title="Create Post" />
     </ScreenWrapper>
   )
 }

@@ -8,6 +8,8 @@ import Input from '../components/Input'
 import ScreenWrapper from '../components/ScreenWrapper'
 import { theme } from '../constants/theme'
 import { hp, wp } from '../helpers/common'
+import { supabase } from '../lib/supabase'
+
 
 const Login = () => {
     const router = useRouter();
@@ -16,11 +18,27 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
 
     const onSubmit = async () => {
-        if(!emailRef.current || !passwordRef.current){
-            Alert.alert('Login', "Please fill all the fields!");
-            return;
-        }
-        // API call logic goes here later
+      if (!emailRef.current || !passwordRef.current) {
+        Alert.alert("Login", "Please fill all the fields!");
+        return;
+      }
+      // API call logic goes here later
+      let email = emailRef.current.trim();
+      let password = passwordRef.current.trim();
+
+      setLoading(true);
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      setLoading(false);
+
+      
+      if (error) {
+        Alert.alert("Login", error.message);
+      }
     }
 
   return (

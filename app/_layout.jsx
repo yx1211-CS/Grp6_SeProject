@@ -1,15 +1,42 @@
-import { View, Text } from 'react-native'
-import React from 'react'
-import { Stack } from 'expo-router'
+import { View, Text, LogBox } from 'react-native'
+import React, { useEffect } from 'react'
+import { Slot, useRouter, useSegments } from 'expo-router'
+import { AuthProvider, useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 
-const _layout = () => {
-  return (
-    <Stack
-        screenOptions={{
-            headerShown: false
-        }}
-    />
-  )
+
+LogBox.ignoreLogs(['Warning: TNodeChildrenRenderer', 'Warning: MemoizedTNodeRenderer', 'TRenderEngineProvider'])
+
+const MainLayout = () => {
+  const { setAuth, setUserData } = useAuth(); 
+  const router = useRouter();
+
+  useEffect(() => {
+    
+    supabase.auth.onAuthStateChange((_event, session) => {
+      // console.log('session user: ', session?.user?.id);
+
+      if (session) {
+        
+        setAuth(session.user);
+        router.replace('/home'); 
+
+      } else {
+        
+        setAuth(null);
+        router.replace('/welcome');
+
+      }
+    })
+  }, []);
+
+  return <Slot /> 
 }
 
-export default _layout
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <MainLayout />
+    </AuthProvider>
+  )
+}

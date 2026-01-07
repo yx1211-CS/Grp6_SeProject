@@ -8,6 +8,7 @@ import Input from '../components/Input'
 import ScreenWrapper from '../components/ScreenWrapper'
 import { hp, wp } from '../helpers/common'
 import { theme } from '../constants/theme'
+import { supabase } from '../lib/supabase'
 
 const SignUp = () => {
     const router = useRouter();
@@ -17,14 +18,43 @@ const SignUp = () => {
     const [loading, setLoading] = useState(false);
 
     const onSubmit = async () => {
-        if(!emailRef.current || !passwordRef.current || !nameRef.current){
-            Alert.alert('Sign Up', "Please fill all the fields!");
-            return;
-        }
-        // Registration logic
-    }
+      if (!emailRef.current || !passwordRef.current || !nameRef.current) {
+        Alert.alert("Sign Up", "Please fill all the fields!");
+        return;
+      }
 
-  return (
+      let name = nameRef.current.trim();
+      let email = emailRef.current.trim();
+      let password = passwordRef.current.trim();
+
+      setLoading(true);
+
+      const { data: { session }, error } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: {
+            username: name, 
+          },
+        },
+      });
+
+      setLoading(false);
+
+      if (error) {
+        Alert.alert("Sign Up Error", error.message);
+      } else {
+        // 注册成功！通常 Supabase 会自动登录并更新 Session
+        // 如果你是只开通了邮箱验证，可能需要提示用户去查收邮件
+        // 但在教程里，默认是直接登录成功的
+        // 可以在这里打印一下 data 看看
+        console.log("Session created:", session);
+        // 这里的跳转逻辑通常由 AuthContext 自动监听处理，不需要手动 router.push
+      }
+    };
+    
+
+   return (
     <ScreenWrapper bg="white">
       <StatusBar style="dark" />
       <View style={styles.container}>
