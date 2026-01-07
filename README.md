@@ -18,9 +18,9 @@ Open your terminal and run:
 - npx expo start
 
 ## Preview on Mobile
-A QR Code will appear in your terminal.
-Android: Scan the QR code using the Expo Go app.
-iOS: Scan the QR code using the default Camera app.
+-A QR Code will appear in your terminal.
+-Android: Scan the QR code using the Expo Go app.
+-iOS: Scan the QR code using the default Camera app.
 
 
 Collaboration Workflow (Git Guide)
