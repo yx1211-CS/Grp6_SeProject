@@ -12,11 +12,10 @@ If you are setting up the project for the first time, please follow these steps:
 ### 1. Clone the Repository
 Open your terminal and run:
 
-git clone [https://github.com/yx1211-CS/Grp6_SeProject.git](https://github.com/yx1211-CS/Grp6_SeProject.git)
-cd Grp6_SeProject
-npm install
-
-npx expo start
+- git clone [https://github.com/yx1211-CS/Grp6_SeProject.git](https://github.com/yx1211-CS/Grp6_SeProject.git)
+- cd Grp6_SeProject
+- npm install
+- npx expo start
 
 ## Preview on Mobile
 A QR Code will appear in your terminal.
