@@ -24,7 +24,8 @@ Open your terminal and run:
 
 
 ## Collaboration Workflow (Git Guide)
-- To avoid merge conflicts, please follow this workflow strictly:
+
+To avoid merge conflicts, please follow this workflow strictly:
 
 1. Before you start coding
 Always pull the latest changes from the remote repository:
