@@ -1,25 +1,25 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Modal,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  FlatList,
+  Modal,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
-// 1. 模拟：待处理的学生求助 (Open Cases)
+// 1.(Open Cases)
 const MOCK_CASES = [
   { id: 'c1', student: 'John Doe', issue: 'Exam Stress', severity: 'Medium', time: '2 hrs ago' },
   { id: 'c2', student: 'Jane Smith', issue: 'Feeling Lonely', severity: 'Low', time: '5 hrs ago' },
   { id: 'c3', student: 'Alex Tan', issue: 'Family Issues', severity: 'High', time: '1 day ago' },
 ];
 
-// 2. 模拟：可用的 Peer Helpers
+// 2. Peer Helpers
 const AVAILABLE_HELPERS = [
   { id: 'h1', name: 'Helper Sarah', status: 'Available' },
   { id: 'h2', name: 'Helper Mike', status: 'Available' },
@@ -30,20 +30,19 @@ export default function AssignmentScreen() {
   const router = useRouter();
   const [cases, setCases] = useState(MOCK_CASES);
   
-  // Modal 状态
+  // Modal 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCase, setSelectedCase] = useState<string | null>(null);
 
-  // 打开分配窗口
+  
   const openAssignModal = (caseId: string) => {
     setSelectedCase(caseId);
     setModalVisible(true);
   };
 
-  // 执行分配
   const handleAssign = (helperName: string) => {
     Alert.alert("Success", `Case assigned to ${helperName}`);
-    // 从列表中移除该案件，模拟已处理
+    
     setCases(prev => prev.filter(c => c.id !== selectedCase));
     setModalVisible(false);
   };

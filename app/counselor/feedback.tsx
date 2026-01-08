@@ -1,21 +1,20 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    SafeAreaView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  FlatList,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
-// 1. 模拟数据：这里全是关于“辅导服务”的反馈
 const SERVICE_FEEDBACK = [
   { 
     id: 'f1', 
-    type: 'Complaint', // 投诉
+    type: 'Complaint', 
     student: 'student_ali', 
     content: 'My Peer Helper (John) was late for 15 mins and did not apologize.', 
     time: 'Yesterday',
@@ -24,7 +23,7 @@ const SERVICE_FEEDBACK = [
   },
   { 
     id: 'f2', 
-    type: 'Appreciation', // 感谢
+    type: 'Appreciation', 
     student: 'sarah_tan', 
     content: 'The session really helped me with my anxiety. Thank you!', 
     time: '2 hours ago',
@@ -33,7 +32,7 @@ const SERVICE_FEEDBACK = [
   },
   { 
     id: 'f3', 
-    type: 'Suggestion', // 建议
+    type: 'Suggestion', 
     student: 'mike_low', 
     content: 'Can we have longer sessions? 30 mins is too short.', 
     time: '3 days ago',
@@ -48,7 +47,7 @@ export default function CounselorFeedbackScreen() {
 
   const handleReview = (id: string, action: 'Acknowledge' | 'Reply') => {
     if (action === 'Reply') {
-      // 这里可以跳转去聊天，或者弹窗写回复
+      
       Alert.alert("Reply", "Open reply box...");
     } else {
       Alert.alert("Success", "Feedback marked as read.", [
@@ -83,7 +82,6 @@ export default function CounselorFeedbackScreen() {
         renderItem={({ item }) => (
           <View style={styles.card}>
             
-            {/* 顶部：类型 + 评分 */}
             <View style={styles.cardHeader}>
               <View style={[
                 styles.badge, 
@@ -97,12 +95,11 @@ export default function CounselorFeedbackScreen() {
               <Text style={styles.ratingText}>{item.rating}</Text>
             </View>
 
-            {/* 内容 */}
+            
             <Text style={styles.studentName}>From: {item.student}</Text>
             <Text style={styles.timeText}>{item.time}</Text>
             <Text style={styles.content}>"{item.content}"</Text>
 
-            {/* 按钮 */}
             <View style={styles.actionRow}>
               <TouchableOpacity 
                 style={[styles.btn, styles.replyBtn]} 

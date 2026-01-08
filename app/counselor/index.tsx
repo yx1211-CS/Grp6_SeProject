@@ -1,19 +1,19 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 export default function CounselorDashboard() {
   const router = useRouter();
 
-  // 模拟数据 (以后从数据库读)
+  
   const pendingCount = 5;
   const approvedToday = 12;
 
@@ -36,7 +36,7 @@ export default function CounselorDashboard() {
           </TouchableOpacity>
         </View>
 
-        {/* 2. Statistics Cards (仪表盘核心) */}
+        {/* 2. Statistics Cards  */}
         <Text style={styles.sectionTitle}>Overview</Text>
         <View style={styles.statsContainer}>
           {/* Card 1: Pending Requests */}
