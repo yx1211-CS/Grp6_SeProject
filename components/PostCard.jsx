@@ -1,14 +1,15 @@
-import { StyleSheet, Text, View, TouchableOpacity, Share } from 'react-native'
-import React from 'react'
-import { theme } from '../constants/theme'
-import { hp, wp, stripHtmlTags } from '../helpers/common'
-import Avatar from './Avatar'
-import moment from 'moment'
-import Icon from '../assets/icons'
-import RenderHtml from 'react-native-render-html';
+import { Video } from 'expo-av'
 import { Image } from 'expo-image'
+import moment from 'moment'
+import { useEffect, useState } from 'react'
+import { Alert, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import RenderHtml from 'react-native-render-html'
+import Icon from '../assets/icons'
+import { theme } from '../constants/theme'
+import { hp, stripHtmlTags, wp } from '../helpers/common'
 import { getSupabaseFileUrl } from '../services/imageService'
-import { Video } from 'expo-av';
+import { createPostLike, removePostLike } from '../services/postService'
+import Avatar from './Avatar'
 
 const textStyle = {
     color: theme.colors.text,
@@ -30,6 +31,12 @@ const PostCard = ({
     hasShadow = true,
 }) => {
     
+    const [likes, setLikes] = useState([]);
+
+    useEffect(() => {
+        setLikes(item?.reactions || []);
+    }, [item])
+
     const shadowStyles = {
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.06,
@@ -38,21 +45,48 @@ const PostCard = ({
     }
 
     const openPostDetails = () => {
-        console.log("Pressed post details");
+        // Implementation for opening post details
+        // router.push({pathname: 'postDetails', params: {postId: item?.postid}})
+        console.log("Details clicked");
     }
 
     const onLike = async () => {
-        console.log("Pressed Like");
+        const liked = likes.filter(r => r.userid == currentUser?.accountid).length > 0;
+        
+        if (liked) {
+            let updatedLikes = likes.filter(r => r.userid != currentUser?.accountid);
+            setLikes([...updatedLikes]);
+
+            const res = await removePostLike(item?.postid, currentUser?.accountid);
+            if (!res.success) {
+                Alert.alert('Post', 'Something went wrong!');
+                setLikes([...likes]);
+            }
+        } else {
+            const data = {
+                userid: currentUser?.accountid, 
+                postid: item?.postid,
+                reactiontype: 'like' 
+            }
+
+            setLikes([...likes, data]);
+
+            const res = await createPostLike(data);
+            if (!res.success) {
+                Alert.alert('Post', 'Something went wrong!');
+                setLikes(likes);
+            }
+        }
     }
 
     const onShare = async () => {
-        // ✅ 修正为小写: postcontent
         let content = {message: stripHtmlTags(item?.postcontent)};
         Share.share(content);
     }
 
-    // ✅ 修正为小写: postcreatedat
     const createdAt = moment(item?.postcreatedat).format('MMM D');
+    
+    const liked = likes.filter(r => r.userid == currentUser?.accountid).length > 0;
 
     return (
         <View style={[styles.container, hasShadow && shadowStyles]}>
@@ -60,7 +94,7 @@ const PostCard = ({
                 <View style={styles.userInfo}>
                     <Avatar
                         size={hp(4.5)}
-                        uri={null} 
+                        uri={item?.user?.image} 
                         rounded={theme.radius.md}
                     />
                     <View style={{ gap: 2 }}>
@@ -77,7 +111,6 @@ const PostCard = ({
             <View style={styles.content}>
                 <View style={styles.postBody}>
                     {
-                        // ✅ 修正为小写: postcontent
                         item?.postcontent && (
                             <RenderHtml
                                 contentWidth={wp(100)}
@@ -88,11 +121,12 @@ const PostCard = ({
                     }
                 </View>
 
-                {/* ✅ 修正为小写: postfile */}
+                {/* --- IMAGE FIX --- */}
                 {
                     item?.postfile && (
                          <Image
-                            source={getSupabaseFileUrl(item?.postfile)}
+                            // CORRECTED: Added 'postImages' bucket name
+                            source={getSupabaseFileUrl('postImages', item?.postfile)}
                             transition={100}
                             style={styles.postMedia}
                             contentFit='cover'
@@ -100,12 +134,13 @@ const PostCard = ({
                     )
                 }
                 
-                {/* ✅ 修正为小写: postfile */}
+                {/* --- VIDEO FIX --- */}
                 {
                     item?.postfile && item?.postfile.includes('postVideos') && (
                          <Video
                             style={[styles.postMedia, {height: hp(30)}]}
-                            source={getSupabaseFileUrl(item?.postfile)}
+                            // CORRECTED: Added 'postImages' bucket name (assuming videos are in same bucket or you change this to 'postVideos')
+                            source={getSupabaseFileUrl('postImages', item?.postfile)}
                             useNativeControls
                             resizeMode="cover"
                             isLooping
@@ -117,10 +152,15 @@ const PostCard = ({
             <View style={styles.footer}>
                 <View style={styles.footerButton}>
                     <TouchableOpacity onPress={onLike}>
-                         <Icon name="heart" size={24} fill={theme.colors.textLight} color={theme.colors.textLight} />
+                         <Icon 
+                            name="heart" 
+                            size={24} 
+                            fill={liked ? theme.colors.rose : 'transparent'} 
+                            color={liked ? theme.colors.rose : theme.colors.textLight} 
+                          />
                     </TouchableOpacity>
                     <Text style={styles.count}>
-                        {item?.reactions?.length || 0}
+                        {likes.length}
                     </Text>
                 </View>
                 <View style={styles.footerButton}>
