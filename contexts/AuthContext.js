@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase"; // 确保这一行路径正确
-
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {

@@ -75,12 +75,7 @@ const Home = () => {
     }
 
 
-    const onLogout = async () => {
-        const { error } = await supabase.auth.signOut();
-        if(error){
-            Alert.alert('Sign out', "Error signing out!")
-        }
-    }
+    
 
   return (
     <ScreenWrapper bg="white">
@@ -129,9 +124,6 @@ const Home = () => {
             )}
         />
 
-        <View style={{marginTop: 50}}>
-            <Button title="Logout" onPress={onLogout} color="red" />
-        </View>
 
         <View style={{marginTop: 50}}>
             <Button 
