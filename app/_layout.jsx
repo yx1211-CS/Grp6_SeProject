@@ -1,6 +1,6 @@
 import { View, Text, LogBox } from 'react-native'
 import React, { useEffect } from 'react'
-import { Slot, useRouter, useSegments } from 'expo-router'
+import { Slot, Stack, useRouter, useSegments } from 'expo-router'
 import { AuthProvider, useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 
@@ -36,7 +36,10 @@ const MainLayout = () => {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <MainLayout />
+       <Stack screenOptions={{ headerShown: false }}>
+         {/* 这里是你的各个页面 */}
+         <Stack.Screen name="(main)/home" />
+      </Stack>
     </AuthProvider>
-  )
+  );
 }
