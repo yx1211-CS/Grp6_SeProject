@@ -11,7 +11,7 @@ const Avatar = ({
 }) => {
   return (
     <Image
-        source={uri ? {uri} : require('../assets/images/defaultUser.png')} 
+        source={uri ? {uri} : require('../assets/images/userImage.png')} 
         transition={100}
         style={[styles.avatar, {height: size, width: size, borderRadius: rounded}, style]}
     />
