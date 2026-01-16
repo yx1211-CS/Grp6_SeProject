@@ -7,7 +7,7 @@ export const fetchPosts = async (limit = 10) => {
             .from('post') 
             .select(`
                 *,
-                user: account (accountid, username, role), 
+                user: account (accountid, username, role, image), 
                 reactions: reaction (*),
                 replies: reply (count)
             `)
@@ -54,7 +54,6 @@ export const removePostLike = async (postId, userId) => {
         const { error } = await supabase
             .from('reaction') 
             .delete()
-            // ✅ CORRECTION: Changed 'accountid' to 'userid' to match your database table
             .eq('userid', userId) 
             .eq('postid', postId); 
 
@@ -67,5 +66,76 @@ export const removePostLike = async (postId, userId) => {
     } catch (error) {
         console.log('removePostLike error: ', error);
         return { success: false, msg: 'Could not remove the like' };
+    }
+}
+
+// ---------------------------------------------------------
+// NEW FUNCTIONS FOR COMMENTS (Step 1)
+// ---------------------------------------------------------
+
+// 4. 获取评论 (Fetch Replies)
+export const fetchPostReplies = async (postId) => {
+    try {
+        const { data, error } = await supabase
+            .from('reply')
+            .select(`
+                *,
+                user: account (accountid, username, image)
+            `)
+            .eq('postid', postId)
+            .order('replycreatedat', { ascending: true }); // Oldest comments at top
+
+        if (error) {
+            console.log('fetchPostReplies error: ', error);
+            return { success: false, msg: 'Could not fetch replies' };
+        }
+        return { success: true, data: data };
+
+    } catch (error) {
+        console.log('fetchPostReplies error: ', error);
+        return { success: false, msg: 'Could not fetch replies' };
+    }
+}
+
+// 5. 发送评论 (Create Reply)
+export const createReply = async (replyData) => {
+    try {
+        const { data, error } = await supabase
+            .from('reply')
+            .insert(replyData)
+            .select(`
+                *,
+                user: account (accountid, username, image)
+            `)
+            .single();
+
+        if (error) {
+            console.log('createReply error: ', error);
+            return { success: false, msg: 'Could not create reply' };
+        }
+        return { success: true, data: data };
+
+    } catch (error) {
+        console.log('createReply error: ', error);
+        return { success: false, msg: 'Could not create reply' };
+    }
+}
+// 6. 删除评论 (Delete Reply)
+export const removeReply = async (replyId) => {
+    try {
+        const { error } = await supabase
+            .from('reply')
+            .delete()
+            .eq('replyid', replyId);
+
+        if (error) {
+            console.log('removeReply error: ', error);
+            return { success: false, msg: 'Could not remove reply' };
+        }
+        return { success: true };
+
+    } catch (error) {
+        console.log('removeReply error: ', error);
+        return { success: false, msg: 'Could not remove reply' };
     }
 }

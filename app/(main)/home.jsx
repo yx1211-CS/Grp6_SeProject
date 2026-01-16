@@ -1,13 +1,13 @@
-import { useRouter } from 'expo-router'
-import { Alert, Button, StyleSheet, Text, View } from 'react-native'
+import { useFocusEffect, useRouter } from 'expo-router'; // Added useFocusEffect
+import { Button, StyleSheet, Text, View } from 'react-native'
 import ScreenWrapper from '../../components/ScreenWrapper'
 import { theme } from '../../constants/theme'
 import { useAuth } from '../../contexts/AuthContext'
 import { hp, wp } from '../../helpers/common'
 import { supabase } from '../../lib/supabase'
 
-import { useEffect, useState } from 'react'
-import { FlatList, Pressable} from 'react-native'
+import { useCallback, useEffect, useState } from 'react'; // Added useCallback
+import { FlatList, Pressable } from 'react-native'
 import Icon from '../../assets/icons'
 import Avatar from '../../components/Avatar'
 import Loading from '../../components/Loading'
@@ -28,17 +28,11 @@ const Home = () => {
 
     // REALTIME UPDATES: Listen for new posts
     const handlePostEvent = async (payload) => {
-        // UPDATED: Check for 'postID' (your database primary key)
         if(payload.eventType == 'INSERT' && payload?.new?.postID){
             let newPost = {...payload.new};
-            
-            // UPDATED: Fetch user data using 'userID' (your foreign key)
-            // Note: Ensure your getUserData service is also updated to query the 'account' table!
             let res = await getUserData(newPost.userID);
             
-            // UPDATED: Initialize 'reactions' array (was post_likes)
             newPost.reactions = [];
-            // UPDATED: Initialize 'replies' count (was comments)
             newPost.replies = [{count: 0}];
             
             newPost.user = res.success? res.data : {};
@@ -46,21 +40,39 @@ const Home = () => {
         }
     }
 
+    // 1. Subscription Effect (Runs once on Mount)
     useEffect(() => {
-        // Subscribe to Supabase Realtime Channel
         const postChannel = supabase
         .channel('posts')
-        // UPDATED: Table name is 'post' (singular), not 'posts'
         .on('postgres_changes', {event: '*', schema: 'public', table: 'post'}, handlePostEvent)
         .subscribe();
 
-        // Initial Load
-        getPosts();
+        // Note: We removed getPosts() from here to avoid double-fetching.
+        // useFocusEffect below will handle the loading.
 
         return () => {
             supabase.removeChannel(postChannel);
         }
     }, [])
+
+    // 2. Focus Effect (Runs whenever screen is visible)
+    useFocusEffect(
+        useCallback(() => {
+            if (limit === 0) {
+                // First time load
+                getPosts();
+            } else {
+                // Refresh existing posts to update counts (Likes/Comments)
+                // We fetch using the current limit so we don't lose the scroll position
+                console.log('Refreshing posts...');
+                fetchPosts(limit).then(res => {
+                    if(res.success && res.data){
+                        setPosts(res.data);
+                    }
+                });
+            }
+        }, [])
+    );
 
     const getPosts = async () => {
         if(!hasMore) return null;
@@ -73,9 +85,6 @@ const Home = () => {
             setPosts(res.data);
         }
     }
-
-
-    
 
   return (
     <ScreenWrapper bg="white">
@@ -96,7 +105,7 @@ const Home = () => {
                         size={hp(4.3)}
                         rounded={theme.radius.sm}
                         style={{borderWidth: 2}}
-                     />
+                      />
                 </Pressable>
             </View>
         </View>
@@ -106,7 +115,6 @@ const Home = () => {
             data={posts}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listStyle}
-            // UPDATED: keyExtractor uses item.postID
             keyExtractor={item => item.postid.toString()}
             renderItem={({item}) => <PostCard item={item} currentUser={user} router={router} />}
             onEndReached={()=>{
@@ -123,7 +131,6 @@ const Home = () => {
                 </View>
             )}
         />
-
 
         <View style={{marginTop: 50}}>
             <Button 

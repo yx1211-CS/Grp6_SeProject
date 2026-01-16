@@ -44,11 +44,15 @@ const PostCard = ({
         elevation: 1
     }
 
-    const openPostDetails = () => {
-        // Implementation for opening post details
-        // router.push({pathname: 'postDetails', params: {postId: item?.postid}})
-        console.log("Details clicked");
-    }
+const openPostDetails = () => {
+    if (!item?.postid) return;
+    
+    // Navigate to the new page and pass the postId
+    router.push({
+        pathname: 'postDetails',
+        params: { postId: item?.postid }
+    });
+}
 
     const onLike = async () => {
         const liked = likes.filter(r => r.userid == currentUser?.accountid).length > 0;
