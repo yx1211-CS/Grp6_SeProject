@@ -129,7 +129,7 @@ const PostDetails = () => {
                                 key={reply?.replyid?.toString()} 
                                 item={reply} 
                                 // Logic: Allow delete if current user owns comment OR current user owns the post
-                                canDelete={user.id == reply.userid || user.id == post.userid} 
+                                canDelete={user?.id == reply?.userid || user?.id == post?.userid} 
                                 onDelete={onDeleteComment} // <--- Added this prop
                             />
                         ))

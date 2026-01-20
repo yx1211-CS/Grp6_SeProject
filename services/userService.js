@@ -5,7 +5,7 @@ export const getUserData = async (userId) => {
         const { data, error } = await supabase
             .from('account') // <--- 你的用户表叫 account
             .select('*')
-            .eq('accountID', userId) // <--- 你的ID字段叫 accountID
+            .eq('accountid', userId) // <--- 你的ID字段叫 accountID
             .single();
 
         if (error) {

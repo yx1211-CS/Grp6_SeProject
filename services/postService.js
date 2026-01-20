@@ -80,15 +80,19 @@ export const fetchPostReplies = async (postId) => {
             .from('reply')
             .select(`
                 *,
-                user: account (accountid, username, image)
-            `)
+                user: userid (username, image) 
+            `) // 这里改用 userid，因为它指向 account 表
             .eq('postid', postId)
-            .order('replycreatedat', { ascending: true }); // Oldest comments at top
+            .order('replycreatedat', { ascending: true }); // 评论通常按时间正序排列
 
         if (error) {
             console.log('fetchPostReplies error: ', error);
             return { success: false, msg: 'Could not fetch replies' };
         }
+        
+        // 调试：看看返回的 data 里是否有 user 对象
+        // console.log('Fetched replies with user info: ', data[0]?.user);
+        
         return { success: true, data: data };
 
     } catch (error) {
