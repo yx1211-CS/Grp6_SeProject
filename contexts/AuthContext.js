@@ -26,7 +26,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     const setUserData = (userData) => {
-        setUser({...user, ...userData});
+        setUser(prevUser => ({
+            ...prevUser, // 保留原有的 id, email 等 Auth 信息
+            ...userData  // 混入数据库的 username, bio, accountid 等信息
+        }));
     }
 
     return (
