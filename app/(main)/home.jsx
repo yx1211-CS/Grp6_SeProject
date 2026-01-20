@@ -1,19 +1,19 @@
 import { useFocusEffect, useRouter } from 'expo-router'; // Added useFocusEffect
-import { Button, StyleSheet, Text, View } from 'react-native'
-import ScreenWrapper from '../../components/ScreenWrapper'
-import { theme } from '../../constants/theme'
-import { useAuth } from '../../contexts/AuthContext'
-import { hp, wp } from '../../helpers/common'
-import { supabase } from '../../lib/supabase'
+import { StyleSheet, Text, View } from 'react-native';
+import ScreenWrapper from '../../components/ScreenWrapper';
+import { theme } from '../../constants/theme';
+import { useAuth } from '../../contexts/AuthContext';
+import { hp, wp } from '../../helpers/common';
+import { supabase } from '../../lib/supabase';
 
 import { useCallback, useEffect, useState } from 'react'; // Added useCallback
-import { FlatList, Pressable } from 'react-native'
-import Icon from '../../assets/icons'
-import Avatar from '../../components/Avatar'
-import Loading from '../../components/Loading'
-import PostCard from '../../components/PostCard'
-import { fetchPosts } from '../../services/postService'
-import { getUserData } from '../../services/userService'
+import { FlatList, Pressable } from 'react-native';
+import Icon from '../../assets/icons';
+import Avatar from '../../components/Avatar';
+import Loading from '../../components/Loading';
+import PostCard from '../../components/PostCard';
+import { fetchPosts } from '../../services/postService';
+import { getUserData } from '../../services/userService';
 
 let limit = 0;
 
@@ -132,16 +132,7 @@ const Home = () => {
             )}
         />
 
-        <View style={{marginTop: 50}}>
-            <Button 
-                title="Go to Counselor （DEMObutton）" 
-                onPress={() => router.push('/counselor')} 
-            />
-            <Button 
-                title="Go to moderator （DEMObutton）" 
-                onPress={() => router.push('/moderator')} 
-            />
-        </View>
+        
       </View>
     </ScreenWrapper>
   )
