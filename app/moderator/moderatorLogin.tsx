@@ -85,6 +85,12 @@ const ModeratorLogin = () => {
                   console.log("Back button pressed!");
                   router.replace("/welcome");
                 }}
+                style={{
+                  alignSelf: "flex-start",
+                  padding: 10,
+                  borderRadius: 50,
+                  backgroundColor: "#F3F4F6",
+                }}
               >
                 <Icon
                   name="arrowLeft"

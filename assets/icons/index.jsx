@@ -1,6 +1,8 @@
+import { Feather } from "@expo/vector-icons"; //防闪退的
 import React from "react";
 import { theme } from "../../constants/theme";
 import ArrowLeft from "./ArrowLeft";
+import ArrowRight from "./ArrowRight";
 import Call from "./Call";
 import Camera from "./Camera";
 import Comment from "./Comment";
@@ -36,6 +38,7 @@ const icons = {
   camera: Camera,
   edit: Edit,
   arrowLeft: ArrowLeft,
+  arrowRight: ArrowRight,
   threeDotsCircle: ThreeDotsCircle,
   threeDotsHorizontal: ThreeDotsHorizontal,
   comment: Comment,
@@ -50,6 +53,12 @@ const icons = {
 
 const Icon = ({ name, ...props }) => {
   const IconComponent = icons[name];
+
+  if (!IconComponent) {
+    console.warn(`Icon "${name}" not found in icons object.`);
+    return <Feather name="help-circle" size={props.size || 24} color="gray" />;
+  }
+
   return (
     <IconComponent
       height={props.size || 24}

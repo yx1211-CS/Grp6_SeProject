@@ -11,6 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+import Icon from "../../assets/icons";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
 import { hp, wp } from "../../helpers/common";
@@ -22,16 +24,16 @@ export default function ModeratorDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // 👇 Logout Loading State
+  // Logout Loading State
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // User Name State
   const [userName, setUserName] = useState("Moderator");
 
-  // 👇 STATE: Sorting, Search, Filter
+  // Sorting, Search, Filter
   const [sortOption, setSortOption] = useState("Newest");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("All"); // Options: 'All' | 'HighRisk' | 'Hidden'
+  const [activeFilter, setActiveFilter] = useState("All");
 
   // Stats State
   const [stats, setStats] = useState({
@@ -40,7 +42,7 @@ export default function ModeratorDashboard() {
     autoHidden: 0,
   });
 
-  // 1. Get Current User Profile
+  // Get Current User Profile
   const getUserProfile = async () => {
     const {
       data: { user },
@@ -55,17 +57,16 @@ export default function ModeratorDashboard() {
     }
   };
 
-  // 2. Fetch Reports from Database
+  // Fetch Reports from Database
   const fetchReports = async () => {
     setLoading(true);
-    // Fetch textual data only (no images)
     const { data, error } = await supabase
       .from("reported_content")
       .select(
         `
         *,
         reporter:reporterid (username, email),
-        post:postid (postcontent, ishidden, author:userid (username, email))
+        post:postid (postcontent, ishidden, postfile, author:userid (username, email))
       `,
       )
       .eq("reportstatus", "Pending");
@@ -129,7 +130,7 @@ export default function ModeratorDashboard() {
     await fetchReports();
   };
 
-  // 👇 3. 修改后的 Logout 逻辑 (去 welcome 页面)
+  // Logout Logic
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -138,16 +139,14 @@ export default function ModeratorDashboard() {
       console.log("Logout error:", error);
     } finally {
       setIsLoggingOut(false);
-      // 👇 这里改成了跳去 welcome
       router.replace("/welcome");
     }
   };
 
-  // 👇 CORE LOGIC: Get final display data (Filter -> Search -> Sort)
+  // Get final display data
   const getDisplayData = () => {
     let data = [...uniqueReports];
 
-    // 1. Stats Filter (Clicking the cards)
     if (activeFilter === "HighRisk") {
       data = data.filter((item) => item.reportCount >= 3);
     } else if (activeFilter === "Hidden") {
@@ -156,7 +155,6 @@ export default function ModeratorDashboard() {
       );
     }
 
-    // 2. Search Filter (Content OR Author)
     if (searchQuery.trim()) {
       const lowerQuery = searchQuery.toLowerCase();
       data = data.filter(
@@ -168,7 +166,6 @@ export default function ModeratorDashboard() {
       );
     }
 
-    // 3. Sorting
     if (sortOption === "Newest") {
       data.sort((a, b) => new Date(b.reporttime) - new Date(a.reporttime));
     } else if (sortOption === "Oldest") {
@@ -182,7 +179,6 @@ export default function ModeratorDashboard() {
 
   const displayData = getDisplayData();
 
-  // --- COMPONENT: Clickable Stats Card ---
   const StatsCard = ({ label, count, color, bg, filterType }) => {
     const isActive = activeFilter === filterType;
     return (
@@ -230,6 +226,7 @@ export default function ModeratorDashboard() {
               reason: item.combinedReasons,
               time: item.reporttime,
               content: postContent,
+              postImage: item.post?.postfile,
               reporterName:
                 item.reportCount > 1
                   ? `${item.reportCount} Reporters`
@@ -280,31 +277,26 @@ export default function ModeratorDashboard() {
   return (
     <ScreenWrapper bg="#F5F5F5">
       <StatusBar style="dark" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
+      <View style={styles.headerContainer}>
+        <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Moderator Dashboard</Text>
-          <Text style={styles.subTitle}>Welcome, {userName}</Text>
-        </View>
 
-        {/* Logout*/}
-        <TouchableOpacity
-          onPress={handleLogout}
-          disabled={isLoggingOut}
-          style={[
-            styles.logoutBtn,
-            isLoggingOut && { backgroundColor: "#999" },
-          ]}
-        >
-          {isLoggingOut ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <Text style={{ color: "white", fontWeight: "600", fontSize: 12 }}>
-              Log Out
-            </Text>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleLogout}
+            disabled={isLoggingOut}
+            style={[
+              styles.logoutBtn,
+              isLoggingOut && { backgroundColor: "#999" },
+            ]}
+          >
+            {isLoggingOut ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <Text style={styles.logoutText}>Log Out</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.subTitle}>Welcome, {userName}</Text>
       </View>
 
       <FlatList
@@ -327,6 +319,27 @@ export default function ModeratorDashboard() {
                 onChangeText={setSearchQuery}
               />
             </View>
+
+            {/* USermanage bar*/}
+            <TouchableOpacity
+              style={styles.userManagementBar}
+              onPress={() => router.push("/moderator/userList")}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+              >
+                <View style={styles.iconCircle}>
+                  <Icon name="user" size={20} color="white" />
+                </View>
+                <View>
+                  <Text style={styles.barTitle}>User Management</Text>
+                  <Text style={styles.barSubtitle}>
+                    View users, ban or unban accounts
+                  </Text>
+                </View>
+              </View>
+              <Icon name="arrowRight" size={20} color="#C7C7CC" />
+            </TouchableOpacity>
 
             {/* Filter Cards */}
             <View style={styles.statsGrid}>
@@ -387,7 +400,7 @@ export default function ModeratorDashboard() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={{ color: "gray", fontSize: 16 }}>
-              {loading ? "Loading..." : "No reports match your filter."}
+              {loading ? "Loading..." : "No reports Found."}
             </Text>
           </View>
         }
@@ -397,28 +410,39 @@ export default function ModeratorDashboard() {
 }
 
 const styles = StyleSheet.create({
-  header: {
+  headerContainer: {
+    paddingHorizontal: wp(4),
+    marginBottom: 15,
+    marginTop: 10,
+    gap: 2,
+  },
+  headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: wp(4),
-    marginBottom: 10,
-    marginTop: 10,
   },
   headerTitle: {
-    fontSize: hp(3.2),
+    fontSize: hp(2.8),
     fontWeight: theme.fonts.bold,
     color: theme.colors.text,
   },
-  subTitle: { color: theme.colors.textLight, fontSize: hp(1.8) },
+  subTitle: {
+    color: theme.colors.textLight,
+    fontSize: hp(1.8),
+    marginTop: 0,
+  },
   logoutBtn: {
     paddingVertical: 6,
     paddingHorizontal: 12,
     backgroundColor: "#333",
     borderRadius: 20,
-    minWidth: 70,
     alignItems: "center",
     justifyContent: "center",
+  },
+  logoutText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: 12,
   },
 
   dashboardSection: { paddingHorizontal: wp(4), marginBottom: 15 },
@@ -457,6 +481,43 @@ const styles = StyleSheet.create({
   statsCount: { fontSize: 24, fontWeight: "bold", marginBottom: 2 },
   statsLabel: { fontSize: 11, color: "gray", fontWeight: "600" },
   indicatorDot: { width: 6, height: 6, borderRadius: 3, marginTop: 5 },
+
+  // 👇👇👇 [新增] User Management Bar 样式 👇👇👇
+  userManagementBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "white",
+    padding: 15,
+    borderRadius: 16,
+    marginBottom: 25, // 增加一点底部间距
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#333", // 黑色背景，醒目
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  barTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: theme.colors.text,
+  },
+  barSubtitle: {
+    fontSize: 12,
+    color: "gray",
+    marginTop: 2,
+  },
+  // 👆👆👆 [样式新增结束] 👆👆👆
 
   sortSection: {
     marginBottom: 10,
