@@ -66,7 +66,7 @@ const UserHeader = ({user, router, handleLogout})  => {
                 {/* 头像与编辑按钮 */}
                 <View style={styles.avatarContainer}>
                     <Avatar 
-                        uri={user?.image} 
+                        uri={user?.profileImage || user?.profileimage} 
                         size={hp(12)} 
                         rounded={theme.radius.xxl * 1.4} 
                     />
@@ -93,11 +93,11 @@ const UserHeader = ({user, router, handleLogout})  => {
 
                     {/* phone(if have) */}
                     { 
-                      user && user.phoneNumber && (
+                      (user?.phoneNumber || user?.phonenumber) && (
                         <View style={styles.info}>
                             <Icon name="call" size={20} color={theme.colors.textLight} />
                             <Text style={styles.infoText}>
-                              {user && user.phoneNumber}
+                              {user?.phoneNumber || user?.phonenumber}
                             </Text>
                         </View>
                       )
