@@ -1,14 +1,14 @@
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import {
-    Alert,
-    Modal,
-    Pressable,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Icon from "../assets/icons";
 import BackButton from "../components/BackButton";
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   staffTriggerContainer: {
     marginTop: 20,
     alignItems: "center",
-    paddingBottom: 20,
+    paddingBottom: 50,
   },
   staffTriggerText: {
     fontSize: hp(1.6),
