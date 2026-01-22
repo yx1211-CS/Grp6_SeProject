@@ -2,13 +2,13 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Icon from "../../assets/icons";
 import ScreenWrapper from "../../components/ScreenWrapper";
@@ -24,9 +24,8 @@ export default function UserList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("All");
 
-  // 👇 修复点：所有逻辑都必须在这个 async 函数内部
   const fetchUsers = async () => {
-    // 1. 先去数据库拿数据
+    // get all user data
     const { data, error } = await supabase
       .from("account")
       .select("*")
@@ -35,30 +34,32 @@ export default function UserList() {
     if (error) {
       console.log("Error fetching users:", error);
       setLoading(false);
-      return; // 如果出错，直接停止
+      return;
     }
 
-    // 2. 👇👇👇 检查是否有过期的 Ban，并自动解封 👇👇👇
-    const now = new Date();
-    const idsToUnban = []; // 收集需要解封的 ID
+    //filter for other role
+    const bannedRoles = ["admin", "moderator", "counselor", "administrator"];
 
-    // 使用 map 遍历刚刚拿到的 data
-    const processedData = data.map((user) => {
-      // 如果用户是被封禁状态，并且有解封时间
+    const onlyUsers = (data || []).filter((user) => {
+      const role = (user.role || "").toLowerCase().trim();
+      return !bannedRoles.includes(role);
+    });
+
+    // auto unban
+    const now = new Date();
+    const idsToUnban = [];
+
+    const processedData = onlyUsers.map((user) => {
       if (user.accountstatus === "Banned" && user.banExpiredDate) {
         const expireDate = new Date(user.banExpiredDate);
-
-        // 如果 "现在时间" 已经超过了 "解封时间"
         if (now > expireDate) {
           idsToUnban.push(user.accountid);
-          // 修改本地数据，让界面马上变绿 (Active)
           return { ...user, accountstatus: "Active", banExpiredDate: null };
         }
       }
-      return user; // 没过期的保持原样
+      return user;
     });
 
-    // 3. 如果发现有过期的人，去数据库更新
     if (idsToUnban.length > 0) {
       await supabase
         .from("account")
@@ -68,12 +69,11 @@ export default function UserList() {
       console.log(`Auto-unbanned ${idsToUnban.length} users.`);
     }
 
-    // 4. 把处理过的数据存入 State，更新界面
-    setUsers(processedData || []);
+    //Refresh
+    setUsers(processedData);
     setLoading(false);
-  }; // 👈 函数在这里结束
+  };
 
-  // 使用 useFocusEffect 确保每次回到页面都刷新
   useFocusEffect(
     useCallback(() => {
       fetchUsers();

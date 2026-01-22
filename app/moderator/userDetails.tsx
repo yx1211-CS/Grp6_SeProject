@@ -2,19 +2,19 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 import Icon from "../../assets/icons";
 import ScreenWrapper from "../../components/ScreenWrapper";
@@ -27,7 +27,7 @@ export default function UserDetails() {
   const { userId } = useLocalSearchParams();
 
   const [user, setUser] = useState(null);
-  // 👇 统计数据状态
+
   const [stats, setStats] = useState({
     postCount: 0,
     violationCount: 0,
@@ -35,18 +35,17 @@ export default function UserDetails() {
   });
   const [loading, setLoading] = useState(true);
 
-  // Modal 状态
+  // Modal
   const [modalVisible, setModalVisible] = useState(false);
   const [banDurationType, setBanDurationType] = useState("Temporary");
   const [tempDays, setTempDays] = useState(1);
   const [banReason, setBanReason] = useState("");
   const [processing, setProcessing] = useState(false);
 
-  // 1. 获取用户详情 + 高级统计
+  // get user details
   const fetchUserDetails = async () => {
     setLoading(true);
 
-    // A. 获取用户信息
     const { data: userData, error: userError } = await supabase
       .from("account")
       .select("*")
@@ -60,23 +59,20 @@ export default function UserDetails() {
     }
 
     const username = userData.username;
-
-    // B. 并行获取三项统计数据
     const [postsRes, violationsRes, bansRes] = await Promise.all([
-      // 1. 总帖子数
       supabase
         .from("post")
         .select("*", { count: "exact", head: true })
         .eq("userid", userId),
 
-      // 2. 违规帖子数 (ishidden = true)
+      // weigui de
       supabase
         .from("post")
         .select("*", { count: "exact", head: true })
         .eq("userid", userId)
         .eq("ishidden", true),
 
-      // 3. 被封禁次数 (查询 log 表，模糊匹配 "Banned @username")
+      // ban time
       supabase
         .from("log")
         .select("*", { count: "exact", head: true })
@@ -100,7 +96,7 @@ export default function UserDetails() {
     if (!user) return;
     const isBanned = user.accountstatus === "Banned";
 
-    // Admin 保护
+    // Admin cant ban
     const userRole = user.role ? user.role.toLowerCase() : "";
     if (!isBanned && (userRole === "admin" || userRole === "administrator")) {
       Alert.alert("Cannot ban admin", "This user is an administrator.");
@@ -117,7 +113,7 @@ export default function UserDetails() {
     }
   };
 
-  // 3. 执行封禁
+  // ban user
   const executeBan = async () => {
     if (!banReason.trim()) {
       Alert.alert("Required", "Please enter a reason.");
@@ -132,7 +128,7 @@ export default function UserDetails() {
       if (banDurationType === "Temporary") {
         const date = new Date();
 
-        // 1分钟测试
+        // 1 minute test
         if (tempDays === 0) {
           date.setMinutes(date.getMinutes() + 1);
           durationText = "1 Minute (Test)";
@@ -158,7 +154,7 @@ export default function UserDetails() {
 
       if (updateError) throw updateError;
 
-      // 写日志
+      // log
       await supabase.from("log").insert({
         accountid: currentUser?.id,
         actiontype: `Banned @${user.username} (${durationText}). Reason: ${banReason}`,
@@ -217,7 +213,6 @@ export default function UserDetails() {
 
   const isBanned = user?.accountstatus === "Banned";
 
-  // 辅助组件：信息行
   const InfoRow = ({
     icon,
     label,
@@ -262,7 +257,7 @@ export default function UserDetails() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 50 }}>
-        {/* 1. 顶部 Profile Card */}
+        {/*Profile Card */}
         <View style={styles.profileCard}>
           <View
             style={[
@@ -275,7 +270,6 @@ export default function UserDetails() {
             >
               {user?.username?.[0]?.toUpperCase()}
             </Text>
-            {/* 认证图标 */}
             {user?.isverify && (
               <View style={styles.verifyBadge}>
                 <Icon name="check" size={12} color="white" strokeWidth={4} />
@@ -323,7 +317,7 @@ export default function UserDetails() {
           )}
         </View>
 
-        {/* 2. 核心统计数据 (Posts, Violations, Bans) */}
+        {/* Posts, Violations, Bans*/}
         <View style={styles.statsContainer}>
           {/* Total Posts */}
           <View style={styles.statItem}>
@@ -350,14 +344,12 @@ export default function UserDetails() {
           </View>
         </View>
 
-        {/* 3. 详细信息 (去掉 Phone/Address/JoinDate, 加入 Verify/Birthday) */}
         <Text style={styles.sectionTitle}>Account Info</Text>
         <View style={styles.infoContainer}>
           <InfoRow icon="user" label="User ID" value={user?.accountid} />
           <InfoRow icon="mail" label="Email" value={user?.email} />
           <InfoRow icon="edit" label="Bio" value={user?.bio || "No bio"} />
 
-          {/* 新增字段 */}
           <InfoRow
             icon="shield"
             label="Verified"
@@ -373,7 +365,6 @@ export default function UserDetails() {
           />
         </View>
 
-        {/* 4. 操作按钮 */}
         <TouchableOpacity
           style={[
             styles.mainActionBtn,

@@ -482,7 +482,6 @@ const styles = StyleSheet.create({
   statsLabel: { fontSize: 11, color: "gray", fontWeight: "600" },
   indicatorDot: { width: 6, height: 6, borderRadius: 3, marginTop: 5 },
 
-  // 👇👇👇 [新增] User Management Bar 样式 👇👇👇
   userManagementBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -490,7 +489,7 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     padding: 15,
     borderRadius: 16,
-    marginBottom: 25, // 增加一点底部间距
+    marginBottom: 25,
     borderWidth: 1,
     borderColor: "#E0E0E0",
     shadowColor: "#000",
@@ -503,7 +502,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#333", // 黑色背景，醒目
+    backgroundColor: "#333",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -517,7 +516,6 @@ const styles = StyleSheet.create({
     color: "gray",
     marginTop: 2,
   },
-  // 👆👆👆 [样式新增结束] 👆👆👆
 
   sortSection: {
     marginBottom: 10,
