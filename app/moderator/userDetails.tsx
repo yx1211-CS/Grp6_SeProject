@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image, // 👈 新增 Image
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -41,6 +42,16 @@ export default function UserDetails() {
   const [tempDays, setTempDays] = useState(1);
   const [banReason, setBanReason] = useState("");
   const [processing, setProcessing] = useState(false);
+
+  // Helper: 获取头像 URL
+  // 如果你有 getUserImageSrc 可以直接用，这里写一个简单的本地逻辑以防万一
+  const getAvatarSource = (path) => {
+    if (!path) return null;
+    if (path.startsWith("http")) return { uri: path };
+    // ⚠️ 注意：请确保这里的 bucket 名字 ('uploads') 和你 Supabase 里的 bucket 名字一致
+    const { data } = supabase.storage.from("uploads").getPublicUrl(path);
+    return { uri: data.publicUrl };
+  };
 
   // get user details
   const fetchUserDetails = async () => {
@@ -238,6 +249,7 @@ export default function UserDetails() {
             styles.infoValue,
             isBoolean && value && { color: theme.colors.primary },
           ]}
+          numberOfLines={2} // 防止地址太长
         >
           {displayValue || "N/A"}
         </Text>
@@ -259,23 +271,42 @@ export default function UserDetails() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 50 }}>
         {/*Profile Card */}
         <View style={styles.profileCard}>
+          {/* 👇👇👇 头像逻辑修改 👇👇👇 */}
           <View
             style={[
               styles.bigAvatar,
-              isBanned && { backgroundColor: "#FFEBEE" },
+              isBanned && !user?.avatar_url && { backgroundColor: "#FFEBEE" }, // 只有没图且被Ban时才变红背景
+              // 如果有图，我们不需要背景色，因为图片会覆盖
+              user?.avatar_url && {
+                backgroundColor: "transparent",
+                borderWidth: 0,
+              },
             ]}
           >
-            <Text
-              style={[styles.bigAvatarText, isBanned && { color: "#D32F2F" }]}
-            >
-              {user?.username?.[0]?.toUpperCase()}
-            </Text>
+            {user?.profileimage ? (
+              // 1. 如果有头像，显示图片
+              <Image
+                source={getAvatarSource(user?.profileimage)}
+                style={styles.avatarImage}
+                resizeMode="cover"
+              />
+            ) : (
+              // 2. 如果没有头像，显示首字母
+              <Text
+                style={[styles.bigAvatarText, isBanned && { color: "#D32F2F" }]}
+              >
+                {user?.username?.[0]?.toUpperCase()}
+              </Text>
+            )}
+
+            {/* 认证角标 (保持不变) */}
             {user?.isverify && (
               <View style={styles.verifyBadge}>
                 <Icon name="check" size={12} color="white" strokeWidth={4} />
               </View>
             )}
           </View>
+          {/* 👆👆👆 头像逻辑结束 👆👆👆 */}
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <Text style={styles.nameText}>@{user?.username}</Text>
@@ -348,6 +379,13 @@ export default function UserDetails() {
         <View style={styles.infoContainer}>
           <InfoRow icon="user" label="User ID" value={user?.accountid} />
           <InfoRow icon="mail" label="Email" value={user?.email} />
+
+          {/* 👇👇👇 新增：Phone Number 👇👇👇 */}
+          <InfoRow icon="call" label="Phone" value={user?.phonenumber} />
+
+          {/* 👇👇👇 新增：Address 👇👇👇 */}
+          <InfoRow icon="location" label="Address" value={user?.address} />
+
           <InfoRow icon="edit" label="Bio" value={user?.bio || "No bio"} />
 
           <InfoRow
@@ -528,6 +566,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 12,
     position: "relative",
+    overflow: "hidden", // 确保图片不溢出圆角
+  },
+  // 新增图片样式
+  avatarImage: {
+    width: "100%",
+    height: "100%",
   },
   bigAvatarText: { fontSize: 36, fontWeight: "bold", color: "#4F46E5" },
   verifyBadge: {
@@ -542,6 +586,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "white",
+    zIndex: 10, // 确保徽章在图片上面
   },
 
   nameText: { fontSize: 20, fontWeight: "bold", color: theme.colors.text },
@@ -611,6 +656,7 @@ const styles = StyleSheet.create({
     color: "#333",
     fontWeight: "600",
     maxWidth: "60%",
+    textAlign: "right", // 确保长地址靠右对齐
   },
 
   mainActionBtn: {

@@ -148,7 +148,7 @@ const Login = () => {
 
             <TouchableOpacity
               style={styles.modalButton}
-              onPress={() => handleRoleLogin("/counselor/counselorLogin")}
+              onPress={() => handleRoleLogin("/counselor/login")}
             >
               <Text style={styles.modalButtonText}>Counselor</Text>
             </TouchableOpacity>
