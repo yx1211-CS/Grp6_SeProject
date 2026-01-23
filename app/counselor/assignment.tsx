@@ -1,184 +1,535 @@
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
+  Image,
   Modal,
-  SafeAreaView,
-  StatusBar,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
-} from 'react-native';
+  View,
+} from "react-native";
+import ScreenWrapper from "../../components/ScreenWrapper";
+import { theme } from "../../constants/theme";
+import { supabase } from "../../lib/supabase";
 
-// 1.(Open Cases)
-const MOCK_CASES = [
-  { id: 'c1', student: 'John Doe', issue: 'Exam Stress', severity: 'Medium', time: '2 hrs ago' },
-  { id: 'c2', student: 'Jane Smith', issue: 'Feeling Lonely', severity: 'Low', time: '5 hrs ago' },
-  { id: 'c3', student: 'Alex Tan', issue: 'Family Issues', severity: 'High', time: '1 day ago' },
-];
-
-// 2. Peer Helpers
-const AVAILABLE_HELPERS = [
-  { id: 'h1', name: 'Helper Sarah', status: 'Available' },
-  { id: 'h2', name: 'Helper Mike', status: 'Available' },
-  { id: 'h3', name: 'Helper Jenny', status: 'Busy' },
-];
-
-export default function AssignmentScreen() {
+export default function CounselorAssignment() {
   const router = useRouter();
-  const [cases, setCases] = useState(MOCK_CASES);
-  
-  // Modal 
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedCase, setSelectedCase] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [requests, setRequests] = useState([]);
+  const [helpers, setHelpers] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  
-  const openAssignModal = (caseId: string) => {
-    setSelectedCase(caseId);
+  // 筛选状态 'all' | 'available' | 'busy'
+  const [filterType, setFilterType] = useState("all");
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    await Promise.all([fetchRequests(), fetchHelpers()]);
+    setLoading(false);
+    setRefreshing(false);
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
+
+  const getAvatarSource = (path) => {
+    if (!path) return null;
+    if (path.startsWith("http")) return { uri: path };
+    const { data } = supabase.storage.from("postImages").getPublicUrl(path);
+    return { uri: data.publicUrl };
+  };
+
+  const fetchRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("help_request")
+        .select(
+          `
+            *,
+            student:help_request_student_id_fkey (
+                username, 
+                profileimage
+            )
+        `,
+        )
+        .eq("status", "Pending")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setRequests(data || []);
+    } catch (error) {
+      console.log("Fetch Requests Error:", error);
+    }
+  };
+
+  const fetchHelpers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("account")
+        .select(
+          `
+            *,
+            helper_application:helper_application_userid_fkey (
+                full_name
+            ),
+            assigned_tasks:help_request!assigned_helper_id (
+                id
+            )
+        `,
+        )
+        .eq("role", "PeerHelper")
+        .eq("assigned_tasks.status", "Assigned")
+        .order("username", { ascending: true });
+
+      if (error) throw error;
+      setHelpers(data || []);
+    } catch (error) {
+      console.log("Fetch Helpers Error:", error);
+    }
+  };
+
+  const openAssignModal = (request) => {
+    setSelectedRequest(request);
+    setFilterType("available"); // 默认只看 Available 的人
     setModalVisible(true);
   };
 
-  const handleAssign = (helperName: string) => {
-    Alert.alert("Success", `Case assigned to ${helperName}`);
-    
-    setCases(prev => prev.filter(c => c.id !== selectedCase));
-    setModalVisible(false);
+  // 👇👇👇 核心修改：严格禁止分配给 Busy Helper 👇👇👇
+  const handleAssign = async (helper) => {
+    const taskCount = helper.assigned_tasks?.length || 0;
+
+    // 🚫 严格拦截
+    if (taskCount >= 3) {
+      Alert.alert(
+        "Helper Unavailable",
+        `@${helper.username} is currently overwhelmed (${taskCount} active tasks). \nPlease select an 'Available' helper.`,
+        [{ text: "OK" }],
+      );
+      return; // 直接结束，不给分配机会
+    }
+
+    // 只有不忙的时候，才允许分配
+    executeAssign(helper);
+  };
+
+  const executeAssign = async (helper) => {
+    if (!selectedRequest) return;
+    const studentName = selectedRequest.student?.username || "Student";
+    const helperName =
+      (helper.helper_application && helper.helper_application[0]?.full_name) ||
+      helper.username;
+
+    Alert.alert(
+      "Confirm Assignment",
+      `Assign ${studentName}'s case to ${helperName}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Assign",
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from("help_request")
+                .update({
+                  status: "Assigned",
+                  assigned_helper_id: helper.accountid,
+                })
+                .eq("id", selectedRequest.id);
+
+              if (error) throw error;
+
+              Alert.alert("Success", "Task assigned successfully!");
+              setModalVisible(false);
+              fetchData();
+            } catch (err) {
+              Alert.alert("Error", err.message);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const getFilteredHelpers = () => {
+    return helpers.filter((h) => {
+      const count = h.assigned_tasks?.length || 0;
+      if (filterType === "busy") return count >= 3;
+      if (filterType === "available") return count < 3;
+      return true;
+    });
+  };
+
+  const renderRequestItem = ({ item }) => {
+    const student = item.student || {};
+    const imagePath = student.profileimage;
+    const displayName = student.username || "Unknown Student";
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View
+            style={[
+              styles.avatarContainer,
+              !imagePath && styles.placeholderAvatar,
+            ]}
+          >
+            {imagePath ? (
+              <Image
+                source={getAvatarSource(imagePath)}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Text style={styles.avatarText}>
+                {displayName[0]?.toUpperCase() || "?"}
+              </Text>
+            )}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.studentName}>@{displayName}</Text>
+            <Text style={styles.date}>
+              {new Date(item.created_at).toLocaleDateString()}
+            </Text>
+          </View>
+          <View style={styles.pendingBadge}>
+            <Text style={styles.pendingText}>Pending</Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+        <Text style={styles.reqTitle}>{item.title}</Text>
+        <Text style={styles.reqDesc}>{item.description}</Text>
+
+        <TouchableOpacity
+          style={styles.assignBtn}
+          onPress={() => openAssignModal(item)}
+        >
+          <Feather name="user-plus" size={18} color="white" />
+          <Text style={styles.assignBtnText}>Select Helper</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderHelperItem = ({ item }) => {
+    const imagePath = item.profileimage || item.profileImage;
+    const realName =
+      (item.helper_application && item.helper_application[0]?.full_name) ||
+      item.username;
+
+    const taskCount = item.assigned_tasks?.length || 0;
+    const isBusy = taskCount >= 3;
+    const statusColor = isBusy ? "#F44336" : "#4CAF50";
+    const statusText = isBusy ? "Busy" : "Available";
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.helperCard,
+          isBusy && { opacity: 0.6, backgroundColor: "#F5F5F5" },
+        ]} // 视觉上变灰
+        onPress={() => handleAssign(item)}
+      >
+        <View
+          style={[
+            styles.avatarContainer,
+            !imagePath && styles.placeholderAvatar,
+          ]}
+        >
+          {imagePath ? (
+            <Image
+              source={getAvatarSource(imagePath)}
+              style={styles.avatarImage}
+            />
+          ) : (
+            <Text style={styles.avatarText}>
+              {item.username[0]?.toUpperCase() || "?"}
+            </Text>
+          )}
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.helperName, isBusy && { color: "#999" }]}>
+            {realName}
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 4,
+            }}
+          >
+            <Text style={styles.helperUsername}>@{item.username}</Text>
+
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: statusColor + "20" },
+              ]}
+            >
+              <View
+                style={[styles.statusDot, { backgroundColor: statusColor }]}
+              />
+              <Text style={[styles.statusText, { color: statusColor }]}>
+                {statusText} ({taskCount})
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 如果 Busy，显示禁止图标；否则显示箭头 */}
+        {isBusy ? (
+          <Feather name="slash" size={20} color="#ccc" />
+        ) : (
+          <Feather
+            name="arrow-right-circle"
+            size={24}
+            color={theme.colors.primary}
+          />
+        )}
+      </TouchableOpacity>
+    );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      
-      {/* Header */}
+    <ScreenWrapper bg="#F8F9FD">
+      <StatusBar style="dark" />
+
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Feather name="arrow-left" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.title}>Student Issues</Text>
-        <View style={{width: 50}} /> 
+        <Text style={styles.title}>Task Assignment</Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <Text style={styles.subHeader}>Incoming Help Requests</Text>
-
-      {/* Case List */}
-      <FlatList 
-        data={cases}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>✅ All Clear!</Text>
-            <Text style={styles.emptySubText}>No new student issues reported.</Text>
-          </View>
+      <FlatList
+        data={requests}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={renderRequestItem}
+        contentContainerStyle={{ padding: 20 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardTop}>
-              <Text style={styles.studentName}>{item.student}</Text>
-              <View style={[styles.badge, item.severity === 'High' ? styles.badgeHigh : styles.badgeNormal]}>
-                <Text style={[styles.badgeText, item.severity === 'High' ? {color:'#C62828'} : {color:'#1565C0'}]}>
-                  {item.severity} Priority
-                </Text>
-              </View>
+        ListEmptyComponent={
+          !loading && (
+            <View style={styles.emptyContainer}>
+              <Feather name="check-circle" size={50} color="#ccc" />
+              <Text style={styles.emptyText}>No pending requests!</Text>
             </View>
-            
-            <Text style={styles.issueTitle}>Issue: {item.issue}</Text>
-            <Text style={styles.timeText}>Reported: {item.time}</Text>
-
-            <TouchableOpacity 
-              style={styles.assignBtn}
-              onPress={() => openAssignModal(item.id)}
-            >
-              <Text style={styles.assignBtnText}>Assign to Helper</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          )
+        }
       />
 
-      {/* Helper Selection Modal */}
       <Modal
-        animationType="slide"
-        transparent={true}
         visible={modalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select a Peer Helper</Text>
-            <Text style={styles.modalSub}>Who should handle this case?</Text>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select a Helper</Text>
+            <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Text style={styles.closeText}>Close</Text>
+            </TouchableOpacity>
+          </View>
 
-            {AVAILABLE_HELPERS.map((helper) => (
-              <TouchableOpacity 
-                key={helper.id} 
-                style={[styles.helperOption, helper.status === 'Busy' && styles.helperBusy]}
-                disabled={helper.status === 'Busy'}
-                onPress={() => handleAssign(helper.name)}
+          {/* Filter Tabs */}
+          <View style={styles.filterContainer}>
+            {["all", "available", "busy"].map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.filterTab,
+                  filterType === type && styles.activeFilterTab,
+                ]}
+                onPress={() => setFilterType(type)}
               >
-                <Text style={styles.helperName}>{helper.name}</Text>
-                <Text style={[styles.helperStatus, helper.status === 'Busy' ? {color:'red'} : {color:'green'}]}>
-                  ● {helper.status}
+                <Text
+                  style={[
+                    styles.filterText,
+                    filterType === type && styles.activeFilterText,
+                  ]}
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
                 </Text>
               </TouchableOpacity>
             ))}
-
-            <TouchableOpacity 
-              style={styles.cancelBtn}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
           </View>
+
+          <View style={styles.modalSubHeader}>
+            <Text style={{ color: "gray" }}>Assigning case for: </Text>
+            <Text style={{ fontWeight: "bold", fontSize: 16 }}>
+              @{selectedRequest?.student?.username || "Student"}
+            </Text>
+          </View>
+
+          <FlatList
+            data={getFilteredHelpers()}
+            keyExtractor={(item) => item.accountid.toString()}
+            renderItem={renderHelperItem}
+            contentContainerStyle={{ padding: 20 }}
+            ListEmptyComponent={
+              <Text
+                style={{ textAlign: "center", marginTop: 20, color: "gray" }}
+              >
+                No helpers found for "{filterType}".
+              </Text>
+            }
+          />
         </View>
       </Modal>
-
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FD' },
-  
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, backgroundColor: '#fff' },
-  backButton: { padding: 5 },
-  backText: { fontSize: 16, color: '#4299E1', fontWeight: '600' },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#2D3748' },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  backBtn: { padding: 8, backgroundColor: "white", borderRadius: 12 },
+  title: { fontSize: 20, fontWeight: "bold", color: "#333" },
 
-  subHeader: { fontSize: 20, fontWeight: 'bold', margin: 20, marginBottom: 10, color: '#2D3748' },
-  listContent: { paddingHorizontal: 20, paddingBottom: 20 },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 15,
+    elevation: 2,
+  },
+  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  studentName: { fontSize: 16, fontWeight: "bold", color: "#333" },
+  date: { fontSize: 12, color: "gray" },
+  pendingBadge: {
+    backgroundColor: "#FFF3E0",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  pendingText: { color: "#FF9800", fontSize: 11, fontWeight: "bold" },
+  divider: { height: 1, backgroundColor: "#f0f0f0", marginBottom: 12 },
+  reqTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 6,
+  },
+  reqDesc: { fontSize: 14, color: "#555", lineHeight: 20, marginBottom: 15 },
+  assignBtn: {
+    backgroundColor: theme.colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  assignBtnText: { color: "white", fontWeight: "bold", fontSize: 15 },
 
-  // Card
-  card: { backgroundColor: 'white', borderRadius: 16, padding: 20, marginBottom: 15, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  studentName: { fontSize: 18, fontWeight: 'bold', color: '#2D3748' },
-  
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  badgeNormal: { backgroundColor: '#E3F2FD' },
-  badgeHigh: { backgroundColor: '#FFEBEE' },
-  badgeText: { fontSize: 12, fontWeight: 'bold' },
+  avatarContainer: {
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    marginRight: 12,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeholderAvatar: {
+    backgroundColor: "#E0E7FF",
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+  },
+  avatarImage: { width: "100%", height: "100%" },
+  avatarText: { fontSize: 18, fontWeight: "bold", color: "#4F46E5" },
+  emptyContainer: { alignItems: "center", marginTop: 100, gap: 10 },
+  emptyText: { color: "#999", fontSize: 16 },
 
-  issueTitle: { fontSize: 16, color: '#4A5568', marginBottom: 5 },
-  timeText: { fontSize: 13, color: '#A0AEC0', marginBottom: 15 },
+  modalContainer: { flex: 1, backgroundColor: "#F8F9FD" },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  modalTitle: { fontSize: 18, fontWeight: "bold" },
+  closeText: { color: theme.colors.primary, fontSize: 16, fontWeight: "600" },
+  modalSubHeader: {
+    padding: 15,
+    backgroundColor: "#f9f9f9",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
-  assignBtn: { backgroundColor: '#4299E1', padding: 12, borderRadius: 10, alignItems: 'center' },
-  assignBtnText: { color: 'white', fontWeight: 'bold' },
+  filterContainer: {
+    flexDirection: "row",
+    padding: 10,
+    backgroundColor: "white",
+    justifyContent: "center",
+    gap: 10,
+  },
+  filterTab: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+  },
+  activeFilterTab: {
+    backgroundColor: theme.colors.primary,
+  },
+  filterText: {
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "600",
+  },
+  activeFilterText: {
+    color: "white",
+  },
 
-  emptyState: { alignItems: 'center', marginTop: 50 },
-  emptyText: { fontSize: 18, fontWeight: 'bold', color: '#2D3748' },
-  emptySubText: { color: '#A0AEC0', marginTop: 5 },
+  helperCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 10,
+    elevation: 1,
+  },
+  helperName: { fontSize: 16, fontWeight: "bold", color: "#333" },
+  helperUsername: { fontSize: 13, color: "gray" },
 
-  // Modal Styles
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 25 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 5, textAlign: 'center' },
-  modalSub: { fontSize: 14, color: '#A0AEC0', marginBottom: 20, textAlign: 'center' },
-  
-  helperOption: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
-  helperBusy: { opacity: 0.5 },
-  helperName: { fontSize: 16, fontWeight: '600', color: '#2D3748' },
-  helperStatus: { fontSize: 14 },
-  
-  cancelBtn: { marginTop: 20, padding: 15, alignItems: 'center', backgroundColor: '#F7FAFC', borderRadius: 10 },
-  cancelText: { color: '#4A5568', fontWeight: 'bold' }
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontSize: 11, fontWeight: "700" },
 });
