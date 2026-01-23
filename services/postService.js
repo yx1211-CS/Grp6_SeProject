@@ -7,7 +7,7 @@ export const fetchPosts = async (limit = 10) => {
             .from('post') 
             .select(`
                 *,
-                user: account (accountid, username, role, image), 
+                user: account (accountid, username, role, profileimage), 
                 reactions: reaction (*),
                 replies: reply (count)
             `)
@@ -109,7 +109,7 @@ export const createReply = async (replyData) => {
             .insert(replyData)
             .select(`
                 *,
-                user: account (accountid, username, image)
+                user: account (accountid, username, profileimage)
             `)
             .single();
 

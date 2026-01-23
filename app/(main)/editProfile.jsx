@@ -66,7 +66,7 @@ const EditProfile = () => {
 
         if (typeof profileImage == 'object') {
             // It's a local image object, need to upload
-            let imageRes = await uploadFile('uploads', profileImage?.uri, true);
+            let imageRes = await uploadFile('postImages', profileImage?.uri, true);
             if (imageRes.success) {
                 userData.profileImage = imageRes.data; // Save path to 'profileImage'
             } else {

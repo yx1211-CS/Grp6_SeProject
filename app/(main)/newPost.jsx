@@ -8,7 +8,7 @@ import { theme } from '../../constants/theme'
 import { useAuth } from '../../contexts/AuthContext'
 import { hp, wp } from '../../helpers/common'
 import { supabase } from '../../lib/supabase'
-import { uploadFile } from '../../services/imageService'
+import { getUserImageSource, uploadFile } from '../../services/imageService'
 
 const NewPost = () => {
     const router = useRouter();
@@ -113,7 +113,7 @@ const onPickImage = async () => {
                            uri: user?.image || 'https://...default...'
                         */}
                         <Image
-                            source={{ uri: user?.image || 'https://cdn-icons-png.flaticon.com/512/149/149071.png' }}
+                            source={getUserImageSource(user?.profileimage)}
                             style={styles.avatar}
                         />
                         <View style={{ gap: 2 }}>

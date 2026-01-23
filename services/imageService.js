@@ -6,11 +6,8 @@ import { supabaseUrl } from '../constants';
 
 export const getUserImageSource = (userImage) => {
     if (userImage) {
-        // 这里假设你的图片存在 'uploads' 这个 bucket 里
-        // 如果你的 bucket 叫 'profiles'，请把 'uploads' 改成 'profiles'
-        return getSupabaseFileUrl('uploads', userImage);
+        return getSupabaseFileUrl('postImages', userImage);
     } else {
-        // ⚠️ 确保你的 assets/images 文件夹里真的有 defaultUser.png 这张图
         return require('../assets/images/userImage.png');
     }
 }
@@ -38,7 +35,7 @@ export const uploadFile = async (bucketName, fileUri, isImage = true) => {
 
         const { data, error } = await supabase
             .storage
-            .from('uploads')
+            .from(bucketName)
             .upload(fileName, imageData, {
                 contentType: isImage ? 'image/*' : 'video/*',
                 cacheControl: '3600',

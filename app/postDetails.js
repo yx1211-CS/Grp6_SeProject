@@ -32,7 +32,7 @@ const PostDetails = () => {
     const getPostDetails = async () => {
         const { data, error } = await supabase
             .from('post')
-            .select('*, user: userid (username, image), reactions (*)')
+            .select('*, user: userid (username, profileimage), reactions (*)')
             .eq('postid', postId)
             .single();
         

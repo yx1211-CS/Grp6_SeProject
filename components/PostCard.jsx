@@ -7,7 +7,7 @@ import RenderHtml from 'react-native-render-html'
 import Icon from '../assets/icons'
 import { theme } from '../constants/theme'
 import { hp, stripHtmlTags, wp } from '../helpers/common'
-import { getSupabaseFileUrl } from '../services/imageService'
+import { getSupabaseFileUrl, getUserImageSource } from '../services/imageService'
 import { createPostLike, removePostLike } from '../services/postService'
 import Avatar from './Avatar'
 
@@ -92,13 +92,14 @@ const openPostDetails = () => {
     
     const liked = likes.filter(r => r.userid == currentUser?.accountid).length > 0;
 
+   
     return (
         <View style={[styles.container, hasShadow && shadowStyles]}>
             <View style={styles.header}>
                 <View style={styles.userInfo}>
                     <Avatar
                         size={hp(4.5)}
-                        uri={item?.user?.image} 
+                        source={getUserImageSource(item?.user?.profileimage)}
                         rounded={theme.radius.md}
                     />
                     <View style={{ gap: 2 }}>
