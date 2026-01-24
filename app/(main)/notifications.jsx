@@ -1,7 +1,6 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-import ScreenWrapper from '../../components/ScreenWrapper';
-import Header from '../../components/Header';
+import { Text, View } from "react-native";
+import Header from "../../components/Header";
+import ScreenWrapper from "../../components/ScreenWrapper";
 
 const Notifications = () => {
   return (
@@ -11,6 +10,6 @@ const Notifications = () => {
         <Text>Notifications Screen</Text>
       </View>
     </ScreenWrapper>
-  )
-}
+  );
+};
 export default Notifications;
