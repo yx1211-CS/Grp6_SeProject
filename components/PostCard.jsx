@@ -16,6 +16,7 @@ const textStyle = {
     fontSize: hp(1.75)
 };
 
+
 const tagsStyles = {
     div: textStyle,
     p: textStyle,
