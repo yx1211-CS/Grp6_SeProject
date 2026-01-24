@@ -1,29 +1,34 @@
-import { useFocusEffect, useRouter } from "expo-router"; // Added useFocusEffect
-import { StyleSheet, Text, View } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
 import { useAuth } from "../../contexts/AuthContext";
 import { hp, wp } from "../../helpers/common";
 import { supabase } from "../../lib/supabase";
 
-import { useCallback, useEffect, useState } from "react"; // Added useCallback
-import { FlatList, Pressable } from "react-native";
+// Components
 import Icon from "../../assets/icons";
 import Avatar from "../../components/Avatar";
 import Loading from "../../components/Loading";
 import PostCard from "../../components/PostCard";
+
+// Services
 import { fetchPosts } from "../../services/postService";
-import { getUserData } from "../../services/userService";
+import { checkUserStreak, getUserData } from "../../services/userService"; // <--- Added checkUserStreak
 
 let limit = 0;
 
 const Home = () => {
   const router = useRouter();
-  const { user, setAuth } = useAuth();
+  const { user } = useAuth();
 
   const [posts, setPosts] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  // --- NEW STREAK STATE ---
+  const [streak, setStreak] = useState(0);
 
   // REALTIME UPDATES: Listen for new posts
   const handlePostEvent = async (payload) => {
@@ -50,9 +55,6 @@ const Home = () => {
       )
       .subscribe();
 
-    // Note: We removed getPosts() from here to avoid double-fetching.
-    // useFocusEffect below will handle the loading.
-
     return () => {
       supabase.removeChannel(postChannel);
     };
@@ -61,12 +63,19 @@ const Home = () => {
   // 2. Focus Effect (Runs whenever screen is visible)
   useFocusEffect(
     useCallback(() => {
+      // A. Check Streak
+      if (user?.id) {
+        checkUserStreak(user.id).then((res) => {
+          if (res.success) setStreak(res.streak);
+        });
+      }
+
+      // B. Fetch/Refresh Posts
       if (limit === 0) {
         // First time load
         getPosts();
       } else {
         // Refresh existing posts to update counts (Likes/Comments)
-        // We fetch using the current limit so we don't lose the scroll position
         console.log("Refreshing posts...");
         fetchPosts(limit).then((res) => {
           if (res.success && res.data) {
@@ -74,7 +83,7 @@ const Home = () => {
           }
         });
       }
-    }, []),
+    }, [user?.id]), // Added dependency
   );
 
   const getPosts = async () => {
@@ -94,7 +103,20 @@ const Home = () => {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>LinkUp</Text>
+          {/* LEFT SIDE: Title + Streak */}
+          <View style={styles.titleGroup}>
+            <Text style={styles.title}>LinkUp</Text>
+
+            {/* Streak Badge (Now beside title) */}
+            {streak > 0 && (
+              <View style={styles.streakContainer}>
+                <Icon name="fire" size={hp(2.5)} color={theme.colors.primary} />
+                <Text style={styles.streakText}>{streak}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* RIGHT SIDE: Action Icons */}
           <View style={styles.icons}>
             <Pressable onPress={() => router.push("notifications")}>
               <Icon
@@ -186,5 +208,22 @@ const styles = StyleSheet.create({
     fontSize: hp(2),
     textAlign: "center",
     color: theme.colors.text,
+  },
+  // --- NEW STREAK STYLES ---
+  streakContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#fff4e6", // Light orange background
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#ffdcb5", // Subtle border
+  },
+  streakText: {
+    fontSize: hp(2.2),
+    fontWeight: theme.fonts.bold,
+    color: theme.colors.primary, // Or hardcoded orange '#f97316'
   },
 });
