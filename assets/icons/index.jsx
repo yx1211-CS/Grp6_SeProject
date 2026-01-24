@@ -8,6 +8,7 @@ import Camera from "./Camera";
 import Comment from "./Comment";
 import Delete from "./Delete";
 import Edit from "./Edit";
+import Fire from "./Fire";
 import Heart from "./Heart";
 import Home from "./Home";
 import Image from "./Image";
@@ -32,6 +33,7 @@ const icons = {
   user: User,
   heart: Heart,
   plus: Plus,
+  fire: Fire,
   search: Search,
   location: Location,
   call: Call,
