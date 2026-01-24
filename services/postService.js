@@ -80,7 +80,7 @@ export const fetchPostReplies = async (postId) => {
             .from('reply')
             .select(`
                 *,
-                user: userid (username, image) 
+                user: userid (username, profileimage) 
             `) // 这里改用 userid，因为它指向 account 表
             .eq('postid', postId)
             .order('replycreatedat', { ascending: true }); // 评论通常按时间正序排列

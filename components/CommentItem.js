@@ -28,7 +28,7 @@ const CommentItem = ({
     return (
         <View style={styles.container}>
             {/* User Avatar */}
-            <Avatar uri={item?.user?.image} size={hp(4)} rounded={theme.radius.md} />
+            <Avatar uri={item?.user?.profileimage} size={hp(4)} rounded={theme.radius.md} />
             
             <View style={styles.content}>
                 {/* Header: Name, Date, Delete Icon */}

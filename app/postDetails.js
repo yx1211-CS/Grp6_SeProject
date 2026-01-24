@@ -32,10 +32,12 @@ const PostDetails = () => {
     const getPostDetails = async () => {
         const { data, error } = await supabase
             .from('post')
-            .select('*, user: userid (username, profileimage), reactions (*)')
+            .select('*, user: account (username, profileimage), reactions: reaction (*)')
             .eq('postid', postId)
             .single();
         
+        //if (error) {console.log('getPostDetails error:', error); // 加个 log 方便排查
+        //}
         if (data) setPost(data);
         setLoading(false);
     }
