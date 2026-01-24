@@ -224,6 +224,6 @@ const styles = StyleSheet.create({
   streakText: {
     fontSize: hp(2.2),
     fontWeight: theme.fonts.bold,
-    color: theme.colors.primary, // Or hardcoded orange '#f97316'
+    color: theme.colors.primary, // Or hardcoded orange '#f91616fe'
   },
 });

@@ -197,7 +197,6 @@ export default function CounselorDashboard() {
               Check student peer helper applications
             </Text>
           </View>
-          <Text style={styles.arrow}>→</Text>
         </TouchableOpacity>
 
         {/* 3. Manage Helpers */}
@@ -212,7 +211,6 @@ export default function CounselorDashboard() {
             <Text style={styles.actionTitle}>Manage Helpers</Text>
             <Text style={styles.actionDesc}>Revoke status & Assign tasks</Text>
           </View>
-          <Text style={styles.arrow}>→</Text>
         </TouchableOpacity>
 
         {/* 4. Service Feedback */}
@@ -227,7 +225,6 @@ export default function CounselorDashboard() {
             <Text style={styles.actionTitle}>Service Feedback</Text>
             <Text style={styles.actionDesc}>Complaints & compliments</Text>
           </View>
-          <Text style={styles.arrow}>→</Text>
         </TouchableOpacity>
 
         {/* 5. Helper Reports */}
@@ -242,7 +239,19 @@ export default function CounselorDashboard() {
             <Text style={styles.actionTitle}>Helper Reports</Text>
             <Text style={styles.actionDesc}>Review reports from helpers</Text>
           </View>
-          <Text style={styles.arrow}>→</Text>
+        </TouchableOpacity>
+
+        {/* 6. Statistics Report*/}
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() => router.push("/counselor/statistics")}
+        >
+          <View style={[styles.iconBox, { backgroundColor: "#E3F2FD" }]}>
+            <Text style={styles.icon}>📊</Text>
+          </View>
+          <View style={styles.actionTextContainer}>
+            <Text style={styles.actionTitle}>Report Dashboard</Text>
+          </View>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -323,7 +332,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 15,
   },
-  icon: { fontSize: 24 }, // 控制 Emoji 大小
+  icon: { fontSize: 24 },
   actionTextContainer: { flex: 1 },
   actionTitle: { fontSize: 16, fontWeight: "bold", color: "#2D3748" },
   actionDesc: { fontSize: 13, color: "#A0AEC0", marginTop: 2 },

@@ -144,6 +144,21 @@ const UserHeader = ({ user, router, handleLogout }) => {
               </View>
               <Icon name="arrowRight" size={20} color="#C7C7CC" />
             </TouchableOpacity>
+
+            {/*My Tasks */}
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push("counselor/myTask")}
+            >
+              <View style={styles.menuIconBox}>
+                <Icon name="edit" size={24} color={theme.colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuText}>My Tasks</Text>
+                <Text style={styles.menuSubText}>View assigned tasks</Text>
+              </View>
+              <Icon name="arrowRight" size={20} color="#C7C7CC" />
+            </TouchableOpacity>
           </View>
           {/* ***************************************************************** */}
         </View>

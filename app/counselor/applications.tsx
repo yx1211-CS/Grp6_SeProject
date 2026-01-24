@@ -19,8 +19,6 @@ export default function CounselorApplications() {
   const [loading, setLoading] = useState(true);
   const [apps, setApps] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-
-  // 用于控制展开/折叠详情
   const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
@@ -29,12 +27,11 @@ export default function CounselorApplications() {
 
   const fetchApplications = async () => {
     try {
-      // 获取所有状态为 Pending 的申请
       const { data, error } = await supabase
         .from("helper_application")
         .select("*")
         .eq("helperstatus", "Pending")
-        .order("applicationsubmissiondate", { ascending: false }); // 最新申请排前面
+        .order("applicationsubmissiondate", { ascending: false });
 
       if (error) throw error;
       setApps(data || []);
@@ -52,7 +49,6 @@ export default function CounselorApplications() {
     fetchApplications();
   };
 
-  // 🟢 批准申请逻辑
   const handleApprove = (application) => {
     Alert.alert(
       "Confirm Approve",
@@ -64,7 +60,7 @@ export default function CounselorApplications() {
           onPress: async () => {
             setLoading(true);
             try {
-              // 1. 更新申请单状态 -> Approved
+              // approve
               const { error: appError } = await supabase
                 .from("helper_application")
                 .update({
@@ -75,7 +71,7 @@ export default function CounselorApplications() {
 
               if (appError) throw appError;
 
-              // 2. 升级用户身份 -> PeerHelper
+              // update role
               const { error: userError } = await supabase
                 .from("account")
                 .update({ role: "PeerHelper" })
@@ -84,7 +80,7 @@ export default function CounselorApplications() {
               if (userError) throw userError;
 
               Alert.alert("Success", "User is now a Peer Helper!");
-              fetchApplications(); // 刷新列表
+              fetchApplications();
             } catch (error) {
               Alert.alert("Error", error.message);
               setLoading(false);
@@ -95,7 +91,7 @@ export default function CounselorApplications() {
     );
   };
 
-  // 🔴 拒绝申请逻辑
+  //reject
   const handleReject = (application) => {
     Alert.alert("Reject Application", "Are you sure?", [
       { text: "Cancel", style: "cancel" },
@@ -105,7 +101,6 @@ export default function CounselorApplications() {
         onPress: async () => {
           setLoading(true);
           try {
-            // 只更新申请单状态 -> Rejected
             const { error } = await supabase
               .from("helper_application")
               .update({ helperstatus: "Rejected" })
@@ -113,7 +108,7 @@ export default function CounselorApplications() {
 
             if (error) throw error;
 
-            fetchApplications(); // 刷新列表
+            fetchApplications();
           } catch (error) {
             Alert.alert("Error", error.message);
             setLoading(false);
@@ -154,7 +149,6 @@ export default function CounselorApplications() {
           />
         </View>
 
-        {/* 展开的详情区域 */}
         {isExpanded && (
           <View style={styles.detailsContainer}>
             <View style={styles.detailRow}>
@@ -276,7 +270,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "#E0F2F1", // 淡绿色背景
+    backgroundColor: "#E0F2F1",
     alignItems: "center",
     justifyContent: "center",
   },
