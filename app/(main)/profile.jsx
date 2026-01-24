@@ -6,25 +6,47 @@ import {
   Text,
   TouchableOpacity,
   View,
+  FlatList
 } from "react-native";
 import Icon from "../../assets/icons";
 import Avatar from "../../components/Avatar";
 import Header from "../../components/Header";
 import ScreenWrapper from "../../components/ScreenWrapper";
+import PostCard from "../../components/PostCard";
 import { theme } from "../../constants/theme";
 import { useAuth } from "../../contexts/AuthContext";
 import { hp, wp } from "../../helpers/common";
 import { supabase } from "../../lib/supabase";
+import { useState, useEffect } from "react";
+import { fetchPosts } from "../../services/postService";
+
+
+
+
 
 const Profile = () => {
   const { user, setAuth } = useAuth();
+  const [posts, setPosts] = useState([]);
   console.log("当前 User 数据:", user);
   const router = useRouter();
+  useEffect(() => {
+    getUserPosts();
+}, []);
   const onLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       Alert.alert("Sign out", "Error signing out!");
     }
+  };
+
+
+  const getUserPosts = async () => {
+        // ✅ 传入 user.id 作为第二个参数，告诉 Service 只抓这个人的
+        let res = await fetchPosts(10, user.id);
+        
+        if (res.success) {
+            setPosts(res.data);
+        }
   };
 
   const handleLogout = async () => {
@@ -44,7 +66,27 @@ const Profile = () => {
 
   return (
     <ScreenWrapper bg="white">
-      <UserHeader user={user} router={router} handleLogout={handleLogout} />
+      <FlatList
+                data={posts}
+                // 将原本的 Header 放入 ListHeaderComponent
+                ListHeaderComponent={<UserHeader user={user} router={router} handleLogout={handleLogout} />}
+                ListHeaderComponentStyle={{marginBottom: 30}}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.listStyle}
+                keyExtractor={item => item.postid.toString()}
+                renderItem={({ item }) => (
+                    <PostCard
+                        item={item}
+                        currentUser={user}
+                        router={router}
+                    />
+                )}
+                onEndReached={() => {
+                    getUserPosts(); // 加载更多
+                }}
+                onEndReachedThreshold={0}
+                // ... loading footer ...
+        />
     </ScreenWrapper>
   );
 };

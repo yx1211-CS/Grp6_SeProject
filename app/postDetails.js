@@ -10,10 +10,11 @@ import { hp, wp } from '../helpers/common';
 import { supabase } from '../lib/supabase';
 // Unified imports
 import { createReply, fetchPostReplies, removeReply } from '../services/postService';
+import { removePost } from '../services/postService';
 
 const PostDetails = () => {
     const { postId } = useLocalSearchParams();
-    const { user } = useAuth();
+    const {user} = useAuth();
     const router = useRouter();
     
     const [post, setPost] = useState(null);
@@ -27,6 +28,49 @@ const PostDetails = () => {
         getPostDetails();
         getReplies();
     }, []);
+
+    const onMenuPress = () => {
+      // 1. 权限检查：只有作者本人能操作
+      // 注意：Supabase 返回的 userid 可能是 string，确保类型一致
+      const isOwner = user?.id == post?.userid;
+
+      if (!isOwner) {
+        // 如果不是作者，只显示举报
+        Alert.alert("Post", "Options", [
+          { text: "Cancel", style: "cancel" },
+          { text: "Report Post", onPress: () => console.log("Reported") },
+        ]);
+        return;
+      }
+
+      // 2. 如果是作者，显示编辑/删除
+      Alert.alert("Post", "Options", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Edit",
+          onPress: () => {
+            // ✅ 跳转去 NewPost，把当前帖子数据传过去
+            // 注意：这里会自动把 postcontent, postfile 等传过去
+            router.push({ pathname: "newPost", params: { ...post } });
+          },
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            // ✅ 执行删除
+            const res = await removePost(post?.postid);
+            if (res.success) {
+              // 如果是在详情页，删除后退回上一页
+              // router.back();
+              // 如果是在首页，这里通常需要通知父组件刷新 list
+            } else {
+              Alert.alert("Error", res.msg);
+            }
+          },
+        },
+      ]);
+    };
 
     // 1. Fetch the Post Data
     const getPostDetails = async () => {

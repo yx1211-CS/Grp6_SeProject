@@ -8,7 +8,7 @@ import Icon from '../assets/icons'
 import { theme } from '../constants/theme'
 import { hp, stripHtmlTags, wp } from '../helpers/common'
 import { getSupabaseFileUrl, getUserImageSource } from '../services/imageService'
-import { createPostLike, removePostLike } from '../services/postService'
+import { createPostLike, removePostLike, removePost } from '../services/postService'
 import Avatar from './Avatar'
 
 const textStyle = {
@@ -29,6 +29,7 @@ const PostCard = ({
     currentUser,
     router,
     hasShadow = true,
+    
 }) => {
     
     const [likes, setLikes] = useState([]);
@@ -44,6 +45,8 @@ const PostCard = ({
         elevation: 1
     }
 
+    
+
 const openPostDetails = () => {
     if (!item?.postid) return;
     
@@ -53,6 +56,51 @@ const openPostDetails = () => {
         params: { postId: item?.postid }
     });
 }
+
+
+    // 🔴 核心逻辑：点击三个点触发菜单
+    const onMenuPress = () => {
+        // 1. 判断是不是作者本人
+        // 注意：确保 currentUser.id 和 item.userid 格式一致 (都是 UUID)
+        const isOwner = currentUser?.id == item?.userid; 
+  
+        if (!isOwner) {
+            // 如果不是作者，只显示举报
+            Alert.alert('Post', 'Options', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Report Post', onPress: () => console.log('Reported logic here...') }
+            ]);
+        } else {
+            // 如果是作者，显示编辑/删除
+            Alert.alert('Post', 'Options', [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: 'Edit', 
+                    onPress: () => {
+                        // 跳转去 NewPost，把当前帖子数据传过去
+                        router.push({ pathname: 'newPost', params: { ...item } });
+                    } 
+                },
+                { 
+                    text: 'Delete', 
+                    style: 'destructive', // 红色警告样式
+                    onPress: handlePostDelete
+                }
+            ]);
+        }
+    }
+
+    // 执行删除逻辑
+    const handlePostDelete = async () => {
+        const res = await removePost(item?.postid);
+        if (res.success) {
+            // 这里有个小问题：Profile 列表不会自动刷新，除非你刷新页面
+            // 但帖子确实被删除了
+            Alert.alert('Success', 'Post deleted successfully');
+        } else {
+            Alert.alert('Error', res.msg);
+        }
+    }
 
     const onLike = async () => {
         const liked = likes.filter(r => r.userid == currentUser?.accountid).length > 0;
@@ -94,96 +142,95 @@ const openPostDetails = () => {
 
    
     return (
-        <View style={[styles.container, hasShadow && shadowStyles]}>
-            <View style={styles.header}>
-                <View style={styles.userInfo}>
-                    <Avatar
-                        size={hp(4.5)}
-                        source={getUserImageSource(item?.user?.profileimage)}
-                        rounded={theme.radius.md}
-                    />
-                    <View style={{ gap: 2 }}>
-                        <Text style={styles.username}>{item?.user?.username}</Text>
-                        <Text style={styles.postTime}>{createdAt}</Text>
-                    </View>
-                </View>
-
-                <TouchableOpacity onPress={openPostDetails}>
-                     <Icon name="threeDotsHorizontal" size={hp(3.4)} strokeWidth={3} color={theme.colors.text} />
-                </TouchableOpacity>
+      <View style={[styles.container, hasShadow && shadowStyles]}>
+        <View style={styles.header}>
+          <View style={styles.userInfo}>
+            <Avatar
+              size={hp(4.5)}
+              source={getUserImageSource(item?.user?.profileimage)}
+              rounded={theme.radius.md}
+            />
+            <View style={{ gap: 2 }}>
+              <Text style={styles.username}>{item?.user?.username}</Text>
+              <Text style={styles.postTime}>{createdAt}</Text>
             </View>
+          </View>
 
-            <View style={styles.content}>
-                <View style={styles.postBody}>
-                    {
-                        item?.postcontent && (
-                            <RenderHtml
-                                contentWidth={wp(100)}
-                                source={{ html: item?.postcontent }}
-                                tagsStyles={tagsStyles}
-                            />
-                        )
-                    }
-                </View>
-
-                {/* --- IMAGE FIX --- */}
-                {
-                    item?.postfile && (
-                         <Image
-                            // CORRECTED: Added 'postImages' bucket name
-                            source={getSupabaseFileUrl('postImages', item?.postfile)}
-                            transition={100}
-                            style={styles.postMedia}
-                            contentFit='cover'
-                        />
-                    )
-                }
-                
-                {/* --- VIDEO FIX --- */}
-                {
-                    item?.postfile && item?.postfile.includes('postVideos') && (
-                         <Video
-                            style={[styles.postMedia, {height: hp(30)}]}
-                            // CORRECTED: Added 'postImages' bucket name (assuming videos are in same bucket or you change this to 'postVideos')
-                            source={getSupabaseFileUrl('postImages', item?.postfile)}
-                            useNativeControls
-                            resizeMode="cover"
-                            isLooping
-                        />
-                    )
-                }
-            </View>
-
-            <View style={styles.footer}>
-                <View style={styles.footerButton}>
-                    <TouchableOpacity onPress={onLike}>
-                         <Icon 
-                            name="heart" 
-                            size={24} 
-                            fill={liked ? theme.colors.rose : 'transparent'} 
-                            color={liked ? theme.colors.rose : theme.colors.textLight} 
-                          />
-                    </TouchableOpacity>
-                    <Text style={styles.count}>
-                        {likes.length}
-                    </Text>
-                </View>
-                <View style={styles.footerButton}>
-                    <TouchableOpacity onPress={openPostDetails}>
-                         <Icon name="comment" size={24} color={theme.colors.textLight} />
-                    </TouchableOpacity>
-                    <Text style={styles.count}>
-                        {item?.replies?.[0]?.count || 0}
-                    </Text>
-                </View>
-                <View style={styles.footerButton}>
-                    <TouchableOpacity onPress={onShare}>
-                         <Icon name="share" size={24} color={theme.colors.textLight} />
-                    </TouchableOpacity>
-                </View>
-            </View>
+          <TouchableOpacity onPress={onMenuPress}>
+            <Icon
+              name="threeDotsHorizontal"
+              size={hp(3.4)}
+              strokeWidth={3}
+              color={theme.colors.text}
+            />
+          </TouchableOpacity>
         </View>
-    )
+
+        <View style={styles.content}>
+          <View style={styles.postBody}>
+            {item?.postcontent && (
+              <RenderHtml
+                contentWidth={wp(100)}
+                source={{ html: item?.postcontent }}
+                tagsStyles={tagsStyles}
+              />
+            )}
+          </View>
+
+
+          
+
+          {/* --- IMAGE FIX --- */}
+          {item?.postfile && (
+            <Image
+              // CORRECTED: Added 'postImages' bucket name
+              source={getSupabaseFileUrl("postImages", item?.postfile)}
+              transition={100}
+              style={styles.postMedia}
+              contentFit="cover"
+            />
+          )}
+          {/* --- VIDEO FIX --- */}
+          {item?.postfile && item?.postfile.includes("postVideos") && (
+            <Video
+              style={[styles.postMedia, { height: hp(30) }]}
+              // CORRECTED: Added 'postImages' bucket name (assuming videos are in same bucket or you change this to 'postVideos')
+              source={getSupabaseFileUrl("postImages", item?.postfile)}
+              useNativeControls
+              resizeMode="cover"
+              isLooping
+            />
+          )}
+        </View>
+
+        <View style={styles.footer}>
+          <View style={styles.footerButton}>
+            <TouchableOpacity onPress={onLike}>
+              <Icon
+                name="heart"
+                size={24}
+                fill={liked ? theme.colors.rose : "transparent"}
+                color={liked ? theme.colors.rose : theme.colors.textLight}
+              />
+            </TouchableOpacity>
+            <Text style={styles.count}>
+                {likes.length}
+                </Text>
+          </View>
+          <View style={styles.footerButton}>
+            <TouchableOpacity onPress={openPostDetails}>
+              <Icon name="comment" size={24} color={theme.colors.textLight} />
+            </TouchableOpacity>
+            <Text style={styles.count}>{item?.replies?.[0]?.count || 0}</Text>
+          </View>
+          <View style={styles.footerButton}>
+            <TouchableOpacity onPress={onShare}>
+              <Icon name="share" size={24} color={theme.colors.textLight} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
 }
 
 export default PostCard

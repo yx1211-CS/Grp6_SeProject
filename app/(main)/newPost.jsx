@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker'
-import { useRouter } from 'expo-router'
-import { useRef, useState } from 'react'
+import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useRef, useState, useEffect } from 'react'
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import Icon from '../../assets/icons'
 import ScreenWrapper from '../../components/ScreenWrapper'
@@ -9,13 +9,19 @@ import { useAuth } from '../../contexts/AuthContext'
 import { hp, wp } from '../../helpers/common'
 import { supabase } from '../../lib/supabase'
 import { getUserImageSource, uploadFile } from '../../services/imageService'
+import { createOrUpdatePost } from '../../services/postService'
 
 const NewPost = () => {
+    const post = useLocalSearchParams();
     const router = useRouter();
     const { user } = useAuth();
     const textRef = useRef("");
+    const bodyRef = useRef("");
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    
+
 
     // 打开相册
 const onPickImage = async () => {
@@ -32,9 +38,22 @@ const onPickImage = async () => {
             setFile(result.assets[0]);
         }
     }
+
+
+    useEffect(() => {
+        // ✅ 检查 postid (而不是 id)
+        if (post && post.postid) {
+            // ✅ 回填 postcontent (而不是 body)
+            bodyRef.current = post.postcontent; 
+            // ✅ 回填 postfile (而不是 file)
+            setFile(post.postfile || null);
+
+        }
+    }, []);
+
     // 提交发布
     const onSubmit = async () => {
-        if (!textRef.current && !file) {
+        if (!bodyRef.current && !file) {
             Alert.alert('Post', 'Please add some text or an image!');
             return;
         }
@@ -59,24 +78,26 @@ const onPickImage = async () => {
 
             // 2. 准备数据
             let data = {
-                postcontent: textRef.current,
+                postcontent: bodyRef.current,
                 postfile: postFile,
                 // UPDATED: Using 'userid' to match your DB schema
                 // UPDATED: Using 'user.id' which is the standard Supabase Auth ID
                 userid: user?.id, 
             };
 
-            // 3. 写入数据库
-            const { error } = await supabase
-                .from('post')
-                .insert(data);
+            // ✅ 如果是编辑模式，必须带上 ID，这样 Supabase 才知道是 Update 还是 Insert
+                if (post && post.postid) {
+                    data.postid = post.postid;
+                }
 
-            if (error) {
-                Alert.alert('Post', error.message);
-                setLoading(false);
+            let res = await createOrUpdatePost(data);
+            
+            setLoading(false);
+            
+            if (res.success) {
+                router.back(); 
             } else {
-                setLoading(false);
-                router.back(); // 成功回首页
+                Alert.alert('Post', res.msg);
             }
 
         } catch (error) {
@@ -128,7 +149,7 @@ const onPickImage = async () => {
                             placeholderTextColor={theme.colors.textLight}
                             style={styles.input}
                             multiline
-                            onChangeText={value => textRef.current = value}
+                            onChangeText={value => bodyRef.current = value}
                         />
                     </View>
 

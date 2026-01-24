@@ -27,9 +27,10 @@ const Home = () => {
 
   // REALTIME UPDATES: Listen for new posts
   const handlePostEvent = async (payload) => {
-    if (payload.eventType == "INSERT" && payload?.new?.postID) {
+    console.log('Realtime Payload NEW:', payload.new);
+    if (payload.eventType == "INSERT" && payload?.new?.postid) {
       let newPost = { ...payload.new };
-      let res = await getUserData(newPost.userID);
+      let res = await getUserData(newPost.userid);
 
       newPost.reactions = [];
       newPost.replies = [{ count: 0 }];
@@ -37,7 +38,35 @@ const Home = () => {
       newPost.user = res.success ? res.data : {};
       setPosts((prevPosts) => [newPost, ...prevPosts]);
     }
+
+    // 2. 处理删除 (DELETE)
+    if (payload.eventType == 'DELETE' && payload.old.postid) {
+        setPosts(prevPosts => {
+            // 过滤掉那个被删除 ID 的帖子
+            return prevPosts.filter(post => post.postid != payload.old.postid);
+        });
+    }
+
+    // 3. 处理更新 (UPDATE)
+    if (payload.eventType == 'UPDATE' && payload.new.postid) {
+        setPosts(prevPosts => {
+            return prevPosts.map(post => {
+                // 找到那个被修改的帖子
+                if (post.postid == payload.new.postid) {
+                    return {
+                        ...post, // 保留原有的 user, reactions, replies 信息
+                        postcontent: payload.new.postcontent, // 只更新文字
+                        postfile: payload.new.postfile        // 只更新图片路径
+                    };
+                }
+                return post; // 其他帖子保持不变
+            });
+        });
+    }
+
   };
+
+  
 
   // 1. Subscription Effect (Runs once on Mount)
   useEffect(() => {

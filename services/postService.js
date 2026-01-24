@@ -1,9 +1,11 @@
 import { supabase } from "../lib/supabase";
 
 // 1. 获取帖子列表 (Fetch Posts)
-export const fetchPosts = async (limit = 10) => {
+export const fetchPosts = async (limit = 10, userId) => {
     try {
-        const { data, error } = await supabase
+        // 2. 先建立 Query "构造器" (注意：这里不要加 await)
+        // 这里的 query 只是一个准备好的指令，还没发射出去
+        let query = supabase
             .from('post') 
             .select(`
                 *,
@@ -13,6 +15,15 @@ export const fetchPosts = async (limit = 10) => {
             `)
             .order('postcreatedat', { ascending: false }) 
             .limit(limit);
+
+        // 3. 如果有 userId，就在指令里追加一个筛选条件
+        if (userId) {
+            query = query.eq('userid', userId); // ✅ 这里追加条件
+        }
+
+        // 4. 一切准备就绪，在这里才加上 await 发射请求
+        const { data, error } = await query;
+
 
         if (error) {
             console.log('fetchPosts error: ', error);
@@ -24,6 +35,47 @@ export const fetchPosts = async (limit = 10) => {
     } catch (error) {
         console.log('fetchPosts error: ', error);
         return { success: false, msg: 'Could not fetch posts' };
+    }
+}
+
+// 2. 删除帖子 (Delete)
+export const removePost = async (postId) => {
+    try {
+        const { error } = await supabase
+            .from('post') // ✅ 改成 'post'
+            .delete()
+            .eq('postid', postId); // ✅ 改成 'postid'
+
+        if (error) {
+            console.log('removePost error: ', error);
+            return { success: false, msg: 'Could not remove the post' };
+        }
+        return { success: true, data: { postId } };
+
+    } catch (error) {
+        console.log('removePost error: ', error);
+        return { success: false, msg: 'Could not remove the post' };
+    }
+}
+
+// 3. 创建或更新帖子 (Upsert)
+export const createOrUpdatePost = async (postData) => {
+    try {
+        const { data, error } = await supabase
+            .from('post') // ✅ 改成 'post'
+            .upsert(postData) // Upsert 会根据 postid 自动判断是插入还是更新
+            .select()
+            .single();
+
+        if (error) {
+            console.log('createOrUpdatePost error: ', error);
+            return { success: false, msg: 'Could not create/update post' };
+        }
+        return { success: true, data: data };
+
+    } catch (error) {
+        console.log('createOrUpdatePost error: ', error);
+        return { success: false, msg: 'Could not create/update post' };
     }
 }
 
@@ -80,7 +132,7 @@ export const fetchPostReplies = async (postId) => {
             .from('reply')
             .select(`
                 *,
-                user: userid (username, profileimage) 
+                user: account (username, profileimage) 
             `) // 这里改用 userid，因为它指向 account 表
             .eq('postid', postId)
             .order('replycreatedat', { ascending: true }); // 评论通常按时间正序排列
