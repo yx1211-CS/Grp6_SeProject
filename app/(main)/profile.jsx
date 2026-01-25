@@ -1,55 +1,95 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router"; // Added useLocalSearchParams
+import { useEffect, useState } from "react";
 import {
   Alert,
+  FlatList,
   Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  FlatList
 } from "react-native";
+
+// Components & Config
 import Icon from "../../assets/icons";
 import Avatar from "../../components/Avatar";
 import Header from "../../components/Header";
-import ScreenWrapper from "../../components/ScreenWrapper";
+import Loading from "../../components/Loading"; // Assuming you have this
 import PostCard from "../../components/PostCard";
+import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
 import { useAuth } from "../../contexts/AuthContext";
 import { hp, wp } from "../../helpers/common";
 import { supabase } from "../../lib/supabase";
-import { useState, useEffect } from "react";
+
+// Services
 import { fetchPosts } from "../../services/postService";
-
-
-
-
+import { getUserData } from "../../services/userService"; // Needed to fetch other users
 
 const Profile = () => {
-  const { user, setAuth } = useAuth();
-  const [posts, setPosts] = useState([]);
-  console.log("当前 User 数据:", user);
+  const { user: currentUser } = useAuth(); // Rename 'user' to 'currentUser' for clarity
   const router = useRouter();
+  const params = useLocalSearchParams(); // Get parameters passed from navigation
+
+  const [posts, setPosts] = useState([]);
+  const [profileUser, setProfileUser] = useState(null); // The user to display
+  const [loading, setLoading] = useState(true);
+
+  // Logic: Is this my profile or someone else's?
+  // If no params.userId is passed, or if it matches my ID, it's mine.
+  const isOwnProfile = !params?.userId || params?.userId == currentUser?.id;
+
   useEffect(() => {
     if(user){
-      getUserPosts();
-    } 
-  }, [user]);
+      loadProfileData();
+    }
+    }, [params?.userId, currentUser]);
+
+  const loadProfileData = async () => {
+    setLoading(true);
+
+    let targetUserId = currentUser?.id;
+
+    if (isOwnProfile) {
+      // Case A: Viewing My Profile
+      setProfileUser(currentUser);
+      targetUserId = currentUser?.id;
+    } else {
+      // Case B: Viewing Someone Else
+      let res = await getUserData(params.userId);
+      if (res.success) {
+        setProfileUser(res.data);
+        targetUserId = res.data.accountid; // Ensure we get the correct ID key
+      } else {
+        Alert.alert("Error", "User not found");
+        router.back();
+        return;
+      }
+    }
+
+    // After setting user, fetch their posts
+    await getUserPosts(targetUserId);
+    setLoading(false);
+  };
+
+  const getUserPosts = async (userId) => {
+    if (!user) return; // HEAD 的安全检查保留
+        
+        // 使用传入的 userId，如果没有传则默认用自己的
+    let targetId = userId || user.id;
+    // Fetch posts specifically for this userId
+    let res = await fetchPosts(10, userId);
+    if (res.success) {
+      setPosts(res.data);
+    }
+  };
+
+
   const onLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       Alert.alert("Sign out", "Error signing out!");
     }
-  };
-
-
-  const getUserPosts = async () => {
-        if (!user) return;
-        // ✅ 传入 user.id 作为第二个参数，告诉 Service 只抓这个人的
-        let res = await fetchPosts(10, user.id);
-        
-        if (res.success) {
-            setPosts(res.data);
-        }
   };
 
   const handleLogout = async () => {
@@ -67,80 +107,113 @@ const Profile = () => {
     ]);
   };
 
+  if (loading) {
+    return (
+      <ScreenWrapper bg="white">
+        <Loading />
+      </ScreenWrapper>
+    );
+  }
+
+
   return (
     <ScreenWrapper bg="white">
       <FlatList
-                data={posts}
-                // 将原本的 Header 放入 ListHeaderComponent
-                ListHeaderComponent={<UserHeader user={user} router={router} handleLogout={handleLogout} />}
-                ListHeaderComponentStyle={{marginBottom: 30}}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.listStyle}
-                keyExtractor={item => item.postid.toString()}
-                renderItem={({ item }) => (
-                    <PostCard
-                        item={item}
-                        currentUser={user}
-                        router={router}
-                    />
-                )}
-                onEndReached={() => {
-                    getUserPosts(); // 加载更多
-                }}
-                onEndReachedThreshold={0}
-                // ... loading footer ...
-        />
+        data={posts}
+        // Pass 'profileUser' (the user being viewed) and 'isOwnProfile' flag
+        ListHeaderComponent={
+          <UserHeader
+            user={profileUser}
+            router={router}
+            handleLogout={handleLogout}
+            isOwnProfile={isOwnProfile}
+          />
+        }
+        ListHeaderComponentStyle={{ marginBottom: 30 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listStyle}
+        keyExtractor={(item) => item.postid.toString()}
+        renderItem={({ item }) => (
+          <PostCard
+            item={item}
+            currentUser={currentUser} // Pass logged-in user for Like logic
+            router={router}
+          />
+        )}
+        onEndReached={() => {
+          // Logic to load more posts if needed
+          // getUserPosts(profileUser.id);
+        }}
+        onEndReachedThreshold={0}
+        ListFooterComponent={
+          posts.length === 0 ? (
+            <View style={{ alignItems: "center", marginTop: 20 }}>
+              <Text style={{ color: theme.colors.textLight }}>
+                No posts yet
+              </Text>
+            </View>
+          ) : null
+        }
+      />
     </ScreenWrapper>
   );
 };
 
-const UserHeader = ({ user, router, handleLogout }) => {
+// ==========================================
+// USER HEADER COMPONENT
+// ==========================================
+const UserHeader = ({ user, router, handleLogout, isOwnProfile }) => {
   return (
     <View
       style={{ flex: 1, backgroundColor: "white", paddingHorizontal: wp(4) }}
     >
       <Header title="Profile" showBackButton={true} marginBottom={30} />
 
-      {/* 登出按钮 (绝对定位在右上角) */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Icon name="logout" color={theme.colors.rose} />
-      </TouchableOpacity>
+      {/* Logout Button: Only show if it is MY profile */}
+      {isOwnProfile && (
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Icon name="logout" color={theme.colors.rose} />
+        </TouchableOpacity>
+      )}
 
-      {/* 用户信息区域 */}
+      {/* User Info Area */}
       <View style={styles.container}>
         <View style={{ gap: 15 }}>
-          {/* 头像与编辑按钮 */}
+          {/* Avatar & Edit Button */}
           <View style={styles.avatarContainer}>
             <Avatar
               uri={user?.profileImage || user?.profileimage}
               size={hp(12)}
               rounded={theme.radius.xxl * 1.4}
             />
-            <Pressable
-              style={styles.editIcon}
-              onPress={() => router.push("editProfile")}
-            >
-              <Icon name="edit" strokeWidth={2.5} size={20} />
-            </Pressable>
+            {/* Edit Icon: Only show if it is MY profile */}
+            {isOwnProfile && (
+              <Pressable
+                style={styles.editIcon}
+                onPress={() => router.push("editProfile")}
+              >
+                <Icon name="edit" strokeWidth={2.5} size={20} />
+              </Pressable>
+            )}
           </View>
 
-          {/* username and address */}
+          {/* Username and Address */}
           <View style={{ alignItems: "center", gap: 4 }}>
             <Text style={styles.userName}>{user && user.username}</Text>
             <Text style={styles.infoText}>
-              {(user && user.address) || "New York, NYC"}
+              {(user && user.address) || "No location set"}
             </Text>
           </View>
 
-          {/* email、phone、Bio */}
+          {/* Contact Info & Bio */}
           <View style={{ gap: 10 }}>
-            {/* email*/}
+            {/* Email */}
             <View style={styles.info}>
               <Icon name="mail" size={20} color={theme.colors.textLight} />
               <Text style={styles.infoText}>{user && user.email}</Text>
             </View>
 
-            {/* phone(if have) */}
+            {/* Phone */}
             {(user?.phoneNumber || user?.phonenumber) && (
               <View style={styles.info}>
                 <Icon name="call" size={20} color={theme.colors.textLight} />
@@ -150,62 +223,69 @@ const UserHeader = ({ user, router, handleLogout }) => {
               </View>
             )}
 
-            {/* Bio (如果有才显示) */}
+            {/* Bio */}
             {user && user.bio && (
               <Text style={styles.infoText}>{user.bio}</Text>
             )}
           </View>
 
-          {/* Features************************************************* */}
-          <View style={styles.menuSection}>
-            <Text style={styles.menuTitle}>Features</Text>
+          {/* Features Section: ONLY show if it is MY profile */}
+          {/* We hide this for other users because they can't see your tasks */}
+          {isOwnProfile && (
+            <View style={styles.menuSection}>
+              <Text style={styles.menuTitle}>Features</Text>
 
-            {/*Request Help  */}
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => router.push("/requestHelp")} // 假设你的请求页面路径是这个
-            >
-              <View style={styles.menuIconBox}>
-                <Icon name="comment" size={24} color={theme.colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuText}>Request Help</Text>
-                <Text style={styles.menuSubText}>Need someone to talk to?</Text>
-              </View>
-              <Icon name="arrowRight" size={20} color="#C7C7CC" />
-            </TouchableOpacity>
+              {/* Request Help */}
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => router.push("/requestHelp")}
+              >
+                <View style={styles.menuIconBox}>
+                  <Icon name="comment" size={24} color={theme.colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.menuText}>Request Help</Text>
+                  <Text style={styles.menuSubText}>
+                    Need someone to talk to?
+                  </Text>
+                </View>
+                <Icon name="arrowRight" size={20} color="#C7C7CC" />
+              </TouchableOpacity>
 
-            {/*Peer Helper Application */}
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => router.push("/phApplication")}
-            >
-              <View style={styles.menuIconBox}>
-                <Icon name="heart" size={24} color={theme.colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuText}>Peer Helper Application</Text>
-                <Text style={styles.menuSubText}>Apply to be Peer Helper</Text>
-              </View>
-              <Icon name="arrowRight" size={20} color="#C7C7CC" />
-            </TouchableOpacity>
+              {/* Peer Helper Application */}
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => router.push("/phApplication")}
+              >
+                <View style={styles.menuIconBox}>
+                  <Icon name="heart" size={24} color={theme.colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.menuText}>Peer Helper Application</Text>
+                  <Text style={styles.menuSubText}>
+                    Apply to be Peer Helper
+                  </Text>
+                </View>
+                <Icon name="arrowRight" size={20} color="#C7C7CC" />
+              </TouchableOpacity>
 
-            {/*My Tasks */}
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => router.push("counselor/myTask")}
-            >
-              <View style={styles.menuIconBox}>
-                <Icon name="edit" size={24} color={theme.colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuText}>My Tasks</Text>
-                <Text style={styles.menuSubText}>View assigned tasks</Text>
-              </View>
-              <Icon name="arrowRight" size={20} color="#C7C7CC" />
-            </TouchableOpacity>
-          </View>
-          {/* ***************************************************************** */}
+              {/* My Tasks */}
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => router.push("counselor/myTask")}
+              >
+                <View style={styles.menuIconBox}>
+                  <Icon name="edit" size={24} color={theme.colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.menuText}>My Tasks</Text>
+                  <Text style={styles.menuSubText}>View assigned tasks</Text>
+                </View>
+                <Icon name="arrowRight" size={20} color="#C7C7CC" />
+              </TouchableOpacity>
+            </View>
+          )}
+          {/* End Features Section */}
         </View>
       </View>
     </View>
@@ -216,9 +296,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  headerContainer: {
-    marginHorizontal: wp(4),
-    marginBottom: 20,
+  listStyle: {
+    paddingBottom: 20,
   },
   logoutButton: {
     position: "absolute",
@@ -226,6 +305,7 @@ const styles = StyleSheet.create({
     padding: 5,
     borderRadius: theme.radius.sm,
     backgroundColor: "#fee2e2",
+    zIndex: 10,
   },
   avatarContainer: {
     height: hp(12),
@@ -260,8 +340,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-
-  // peerhelper button
+  // Menu / Features
   menuSection: {
     marginTop: 25,
     borderTopWidth: 1,
