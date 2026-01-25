@@ -26,14 +26,16 @@ const Home = () => {
   const [posts, setPosts] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   // --- NEW STREAK STATE ---
   const [streak, setStreak] = useState(0);
 
   // REALTIME UPDATES: Listen for new posts
   const handlePostEvent = async (payload) => {
-    console.log('Realtime Payload NEW:', payload.new);
+    //console.log('Realtime Payload NEW:', payload.new);
     if (payload.eventType == "INSERT" && payload?.new?.postid) {
+      
       let newPost = { ...payload.new };
       let res = await getUserData(newPost.userid);
 
@@ -69,12 +71,27 @@ const Home = () => {
         });
     }
 
+
+    //【新增：监听通知】
+    if (payload.eventType === 'INSERT' && payload.table === 'notifications') {
+      
+        if (user && user.id && payload.new.receiverid === user.id) {
+            
+            setNotificationCount(prev => prev + 1);
+        }
+    }
+  
+
   };
 
   
 
   // 1. Subscription Effect (Runs once on Mount)
   useEffect(() => {
+    if (!user) return;
+
+    console.log("🔥 Current User ID for Subscription:", user.id);
+
     const postChannel = supabase
       .channel("posts")
       .on(
@@ -84,10 +101,18 @@ const Home = () => {
       )
       .subscribe();
 
+    // 🔥 2. 监听 Notifications (新增)
+    // ✅ 适配：receiverid
+    const notificationChannel = supabase
+        .channel('notifications')
+        .on('postgres_changes', {event: 'INSERT', schema: 'public', table: 'notifications'}, handlePostEvent)
+        .subscribe();
+
     return () => {
       supabase.removeChannel(postChannel);
+      supabase.removeChannel(notificationChannel);
     };
-  }, []);
+  }, [user]);
 
   // 2. Focus Effect (Runs whenever screen is visible)
   useFocusEffect(
@@ -147,13 +172,26 @@ const Home = () => {
 
           {/* RIGHT SIDE: Action Icons */}
           <View style={styles.icons}>
-            <Pressable onPress={() => router.push("notifications")}>
+            <Pressable onPress={() => {
+                setNotificationCount(0); // 点击后清零
+                router.push("notifications"); // 跳转
+            }}>
               <Icon
                 name="heart"
                 size={hp(3.2)}
                 strokeWidth={2}
                 color={theme.colors.text}
               />
+
+              {/* 👇 如果有新通知，显示红点 */}
+              {
+                  notificationCount > 0 && (
+                      <View style={styles.pill}>
+                          <Text style={styles.pillText}>{notificationCount}</Text>
+                      </View>
+                  )
+              }
+              
             </Pressable>
             <Pressable onPress={() => router.push("newPost")}>
               <Icon
@@ -254,5 +292,21 @@ const styles = StyleSheet.create({
     fontSize: hp(2.2),
     fontWeight: theme.fonts.bold,
     color: theme.colors.primary, // Or hardcoded orange '#f91616fe'
+  },
+  pill: {
+    position: "absolute",
+    right: -10,
+    top: -4,
+    height: 20,
+    width: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 20,
+    backgroundColor: theme.colors.roseLight,
+  },
+  pillText: {
+    color: "white",
+    fontSize: hp(1.2),
+    fontWeight: theme.fonts.bold,
   },
 });

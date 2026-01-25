@@ -8,7 +8,8 @@ import Avatar from './Avatar';
 const CommentItem = ({ 
     item, 
     canDelete = false, 
-    onDelete = () => {} 
+    onDelete = () => {},
+    highlight = false
 }) => {
     // Format the date (e.g., "Jan 14")
     const createdAt = moment(item?.replycreatedat).format('MMM D');
@@ -26,7 +27,7 @@ const CommentItem = ({
     }
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, highlight && styles.highlight]}>
             {/* User Avatar */}
             <Avatar uri={item?.user?.profileimage} size={hp(4)} rounded={theme.radius.md} />
             
@@ -74,5 +75,15 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     userInfo: { flexDirection: 'row', gap: 5, alignItems: 'center' },
     name: { fontSize: hp(1.6), fontWeight: theme.fonts.bold, color: theme.colors.textDark },
-    text: { fontSize: hp(1.6), fontWeight: theme.fonts.medium, color: theme.colors.textLight }
+    text: { fontSize: hp(1.6), fontWeight: theme.fonts.medium, color: theme.colors.textLight },
+    highlight: {
+        borderWidth: 0.2,
+        backgroundColor: 'white',
+        borderColor: theme.colors.dark,
+        shadowColor: theme.colors.dark,
+        shadowOffset: {width: 0, height: 0},
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5
+    }
 })

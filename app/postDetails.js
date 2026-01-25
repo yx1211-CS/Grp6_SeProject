@@ -10,10 +10,10 @@ import { hp, wp } from '../helpers/common';
 import { supabase } from '../lib/supabase';
 // Unified imports
 import { createReply, fetchPostReplies, removeReply } from '../services/postService';
-import { removePost } from '../services/postService';
+import { createNotification } from '../services/notificationService';
 
 const PostDetails = () => {
-    const { postId } = useLocalSearchParams();
+    const { postId, commentId } = useLocalSearchParams();
     const {user} = useAuth();
     const router = useRouter();
     
@@ -28,49 +28,6 @@ const PostDetails = () => {
         getPostDetails();
         getReplies();
     }, []);
-
-    const onMenuPress = () => {
-      // 1. 权限检查：只有作者本人能操作
-      // 注意：Supabase 返回的 userid 可能是 string，确保类型一致
-      const isOwner = user?.id == post?.userid;
-
-      if (!isOwner) {
-        // 如果不是作者，只显示举报
-        Alert.alert("Post", "Options", [
-          { text: "Cancel", style: "cancel" },
-          { text: "Report Post", onPress: () => console.log("Reported") },
-        ]);
-        return;
-      }
-
-      // 2. 如果是作者，显示编辑/删除
-      Alert.alert("Post", "Options", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Edit",
-          onPress: () => {
-            // ✅ 跳转去 NewPost，把当前帖子数据传过去
-            // 注意：这里会自动把 postcontent, postfile 等传过去
-            router.push({ pathname: "newPost", params: { ...post } });
-          },
-        },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            // ✅ 执行删除
-            const res = await removePost(post?.postid);
-            if (res.success) {
-              // 如果是在详情页，删除后退回上一页
-              // router.back();
-              // 如果是在首页，这里通常需要通知父组件刷新 list
-            } else {
-              Alert.alert("Error", res.msg);
-            }
-          },
-        },
-      ]);
-    };
 
     // 1. Fetch the Post Data
     const getPostDetails = async () => {
@@ -114,6 +71,18 @@ const PostDetails = () => {
             inputRef?.current?.clear();
             commentRef.current = "";
             Keyboard.dismiss();
+
+            if (user.id != post.userid) {
+                let notify = {
+                    senderid: user.id,   // ✅ 适配：senderid
+                    receiverid: post.userid, // ✅ 适配：receiverid
+                    title: 'commented on your post',
+                    // 把 postId 和 新生成的 replyid 存进去
+                    data: JSON.stringify({ postId: postId, commentId: res.data.replyid }) 
+                }
+                createNotification(notify);
+            }
+
         } else {
             Alert.alert('Comment', res.msg);
         }
@@ -143,66 +112,71 @@ const PostDetails = () => {
     }
 
     return (
-        <View style={styles.container}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Icon name="arrowLeft" size={hp(3.2)} color={theme.colors.text} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Post Details</Text>
-                    <View style={{width: hp(3.2)}} /> 
-                </View>
+      <View style={styles.container}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.list}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Icon name="arrowLeft" size={hp(3.2)} color={theme.colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Post Details</Text>
+            <View style={{ width: hp(3.2) }} />
+          </View>
 
-                {/* The Main Post */}
-                <PostCard
-                    item={{
-        ...post, 
-        replies: [{ count: replies.length }] 
-    }}
-    currentUser={user}
-    router={router}
-    hasShadow={false}
-    showMoreIcon={false} 
-                />
+          {/* The Main Post */}
+          <PostCard
+            item={{
+              ...post,
+              replies: [{ count: replies.length }],
+            }}
+            currentUser={user}
+            router={router}
+            hasShadow={false}
+            showMoreIcon={false}
+            onDelete={() => router.back()}
+          />
 
-                {/* Comments Section */}
-                <View style={styles.replies}>
-                    <Text style={styles.replyTitle}>Comments ({replies.length})</Text>
-                    {
-                        replies.map(reply => (
-                             <CommentItem 
-                                key={reply?.replyid?.toString()} 
-                                item={reply} 
-                                // Logic: Allow delete if current user owns comment OR current user owns the post
-                                canDelete={user?.id == reply?.userid || user?.id == post?.userid} 
-                                onDelete={onDeleteComment} // <--- Added this prop
-                            />
-                        ))
-                    }
-                </View>
-            </ScrollView>
+          {/* Comments Section */}
+          <View style={styles.replies}>
+            <Text style={styles.replyTitle}>Comments ({replies.length})</Text>
+            {replies.map((reply) => (
+              <CommentItem
+                key={reply?.replyid?.toString()}
+                item={reply}
+                // Logic: Allow delete if current user owns comment OR current user owns the post
+                highlight={reply.replyid == commentId}
+                canDelete={
+                  user?.id == reply?.userid || user?.id == post?.userid
+                }
+                onDelete={onDeleteComment} // <--- Added this prop
+              />
+            ))}
+          </View>
+        </ScrollView>
 
-            {/* Input Footer */}
-            <KeyboardAvoidingView 
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-            >
-                <View style={styles.inputContainer}>
-                    <TextInput
-                        ref={inputRef}
-                        onChangeText={value => commentRef.current = value}
-                        placeholder="Type comment..."
-                        placeholderTextColor={theme.colors.textLight}
-                        style={styles.input}
-                    />
-                    <TouchableOpacity onPress={onNewReply} style={styles.sendIcon}>
-                        <Icon name="send" color={theme.colors.primary} />
-                    </TouchableOpacity>
-                </View>
-            </KeyboardAvoidingView>
-        </View>
-    )
+        {/* Input Footer */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+        >
+          <View style={styles.inputContainer}>
+            <TextInput
+              ref={inputRef}
+              onChangeText={(value) => (commentRef.current = value)}
+              placeholder="Type comment..."
+              placeholderTextColor={theme.colors.textLight}
+              style={styles.input}
+            />
+            <TouchableOpacity onPress={onNewReply} style={styles.sendIcon}>
+              <Icon name="send" color={theme.colors.primary} />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    );
 }
 
 export default PostDetails;

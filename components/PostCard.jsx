@@ -10,6 +10,7 @@ import { hp, stripHtmlTags, wp } from '../helpers/common'
 import { getSupabaseFileUrl, getUserImageSource } from '../services/imageService'
 import { createPostLike, removePostLike, removePost } from '../services/postService'
 import Avatar from './Avatar'
+import { createNotification } from '../services/notificationService'
 
 const textStyle = {
     color: theme.colors.text,
@@ -30,6 +31,9 @@ const PostCard = ({
     currentUser,
     router,
     hasShadow = true,
+    showMoreIcon = true,
+    onDelete, // 👈 新增：接收一个 onDelete 回调函数
+    showDelete = true
     
 }) => {
     
@@ -98,6 +102,9 @@ const openPostDetails = () => {
             // 这里有个小问题：Profile 列表不会自动刷新，除非你刷新页面
             // 但帖子确实被删除了
             Alert.alert('Success', 'Post deleted successfully');
+            if (onDelete) {
+              onDelete(); 
+            }
         } else {
             Alert.alert('Error', res.msg);
         }
@@ -125,6 +132,21 @@ const openPostDetails = () => {
             setLikes([...likes, data]);
 
             const res = await createPostLike(data);
+
+            // 🔥 2. 发送通知逻辑 (只有点赞成功才发)
+            if (res.success) {
+                // 如果不是自己给自己点赞，才发通知
+                if (currentUser?.id != item?.userid) {
+                    let notify = {
+                        senderid: currentUser?.id,
+                        receiverid: item?.userid,
+                        title: 'Liked your post',
+                        data: JSON.stringify({ postId: item?.postid, commentId: null })
+                    }
+                    createNotification(notify);
+                }
+            }
+
             if (!res.success) {
                 Alert.alert('Post', 'Something went wrong!');
                 setLikes(likes);

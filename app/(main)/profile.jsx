@@ -30,8 +30,10 @@ const Profile = () => {
   console.log("当前 User 数据:", user);
   const router = useRouter();
   useEffect(() => {
-    getUserPosts();
-}, []);
+    if(user){
+      getUserPosts();
+    } 
+  }, [user]);
   const onLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -41,6 +43,7 @@ const Profile = () => {
 
 
   const getUserPosts = async () => {
+        if (!user) return;
         // ✅ 传入 user.id 作为第二个参数，告诉 Service 只抓这个人的
         let res = await fetchPosts(10, user.id);
         

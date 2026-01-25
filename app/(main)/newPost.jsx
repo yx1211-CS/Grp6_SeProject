@@ -44,7 +44,7 @@ const onPickImage = async () => {
         // ✅ 检查 postid (而不是 id)
         if (post && post.postid) {
             // ✅ 回填 postcontent (而不是 body)
-            bodyRef.current = post.postcontent; 
+            textRef.current = post.postcontent; 
             // ✅ 回填 postfile (而不是 file)
             setFile(post.postfile || null);
 
@@ -53,7 +53,7 @@ const onPickImage = async () => {
 
     // 提交发布
     const onSubmit = async () => {
-        if (!bodyRef.current && !file) {
+        if (!textRef.current && !file) {
             Alert.alert('Post', 'Please add some text or an image!');
             return;
         }
@@ -78,7 +78,7 @@ const onPickImage = async () => {
 
             // 2. 准备数据
             let data = {
-                postcontent: bodyRef.current,
+                postcontent: textRef.current,
                 postfile: postFile,
                 // UPDATED: Using 'userid' to match your DB schema
                 // UPDATED: Using 'user.id' which is the standard Supabase Auth ID
@@ -149,7 +149,7 @@ const onPickImage = async () => {
                             placeholderTextColor={theme.colors.textLight}
                             style={styles.input}
                             multiline
-                            onChangeText={value => bodyRef.current = value}
+                            onChangeText={value => textRef.current = value}
                         />
                     </View>
 
