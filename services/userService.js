@@ -48,7 +48,7 @@ export const updateUser = async (userId, data) => {
 };
 
 // ==============================
-// New Streak Logic Function
+// Streak Logic Function
 // ==============================
 
 export const checkUserStreak = async (userId) => {
@@ -123,5 +123,96 @@ export const checkUserStreak = async (userId) => {
   } catch (error) {
     console.log("checkUserStreak internal error: ", error);
     return { success: false, streak: 0, msg: error.message };
+  }
+};
+
+// ==============================
+// New Friend/Follow Logic
+// ==============================
+
+/**
+ * Follow a user
+ * @param {string} followerId - The ID of the user doing the following (You)
+ * @param {string} followingId - The ID of the user being followed (Them)
+ */
+export const followUser = async (followerId, followingId) => {
+  try {
+    const { error } = await supabase
+      .from("follower")
+      .insert({ follower_id: followerId, following_id: followingId });
+
+    if (error) return { success: false, msg: error.message };
+    return { success: true };
+  } catch (error) {
+    return { success: false, msg: error.message };
+  }
+};
+
+/**
+ * Unfollow a user
+ */
+export const unfollowUser = async (followerId, followingId) => {
+  try {
+    const { error } = await supabase
+      .from("follower")
+      .delete()
+      .eq("follower_id", followerId)
+      .eq("following_id", followingId);
+
+    if (error) return { success: false, msg: error.message };
+    return { success: true };
+  } catch (error) {
+    return { success: false, msg: error.message };
+  }
+};
+
+/**
+ * Check if I am already following this user
+ */
+export const getFollowStatus = async (followerId, followingId) => {
+  try {
+    const { data, error } = await supabase
+      .from("follower")
+      .select("*")
+      .eq("follower_id", followerId)
+      .eq("following_id", followingId)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      // PGRST116 is "Row not found" (not an error really)
+      return { success: false, isFollowing: false };
+    }
+    return { success: true, isFollowing: !!data }; // If data exists, true
+  } catch (error) {
+    return { success: false, isFollowing: false };
+  }
+};
+
+/**
+ * Get follower and following counts for a user
+ */
+export const getFollowCounts = async (userId) => {
+  try {
+    // Count who follows THIS user
+    const { count: followersCount, error: e1 } = await supabase
+      .from("follower")
+      .select("*", { count: "exact", head: true })
+      .eq("following_id", userId);
+
+    // Count who THIS user follows
+    const { count: followingCount, error: e2 } = await supabase
+      .from("follower")
+      .select("*", { count: "exact", head: true })
+      .eq("follower_id", userId);
+
+    if (e1 || e2) return { success: false, msg: "Error fetching counts" };
+
+    return {
+      success: true,
+      followers: followersCount,
+      following: followingCount,
+    };
+  } catch (error) {
+    return { success: false, msg: error.message };
   }
 };

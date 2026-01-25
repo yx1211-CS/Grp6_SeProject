@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from "expo-router"; // Added useLocalSearchParams
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -14,7 +14,7 @@ import {
 import Icon from "../../assets/icons";
 import Avatar from "../../components/Avatar";
 import Header from "../../components/Header";
-import Loading from "../../components/Loading"; // Assuming you have this
+import Loading from "../../components/Loading";
 import PostCard from "../../components/PostCard";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
@@ -24,42 +24,52 @@ import { supabase } from "../../lib/supabase";
 
 // Services
 import { fetchPosts } from "../../services/postService";
-import { getUserData } from "../../services/userService"; // Needed to fetch other users
+import {
+  followUser,
+  getFollowCounts,
+  getFollowStatus,
+  getUserData,
+  unfollowUser,
+} from "../../services/userService";
 
 const Profile = () => {
-  const {user} = useAuth(); // Rename 'user' to 'currentUser' for clarity
+  const { user: currentUser } = useAuth(); // Renamed for clarity
   const router = useRouter();
-  const params = useLocalSearchParams(); // Get parameters passed from navigation
+  const params = useLocalSearchParams();
 
   const [posts, setPosts] = useState([]);
-  const [profileUser, setProfileUser] = useState(null); // The user to display
+  const [profileUser, setProfileUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // --- NEW: Follow State ---
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [stats, setStats] = useState({ followers: 0, following: 0 });
+
   // Logic: Is this my profile or someone else's?
-  // If no params.userId is passed, or if it matches my ID, it's mine.
-  const isOwnProfile = !params?.userId || params?.userId == user?.id;
+  const isOwnProfile = !params?.userId || params?.userId == currentUser?.id;
 
   useEffect(() => {
-    if(user){
+    if (currentUser) {
       loadProfileData();
     }
-    }, [user, params?.userId]);
+  }, [currentUser, params?.userId]);
 
   const loadProfileData = async () => {
     setLoading(true);
 
-    let targetUserId = user?.id;
+    let targetUserId = currentUser?.id;
 
     if (isOwnProfile) {
       // Case A: Viewing My Profile
-      setProfileUser(user);
-      targetUserId = user?.id;
+      setProfileUser(currentUser);
+      targetUserId = currentUser?.id;
     } else {
       // Case B: Viewing Someone Else
       let res = await getUserData(params.userId);
       if (res.success) {
         setProfileUser(res.data);
-        targetUserId = res.data.accountid || res.data.id; // Ensure we get the correct ID key
+        // Ensure we get the correct ID key
+        targetUserId = res.data.accountid || res.data.id;
       } else {
         Alert.alert("Error", "User not found");
         router.back();
@@ -67,23 +77,66 @@ const Profile = () => {
       }
     }
 
-    // After setting user, fetch their posts
+    // 1. Fetch Follow Data (Stats & Status)
+    await fetchFollowInfo(targetUserId);
+
+    // 2. Fetch Posts
     await getUserPosts(targetUserId);
+
     setLoading(false);
   };
 
+  const fetchFollowInfo = async (userId) => {
+    // Get Counts
+    const countsRes = await getFollowCounts(userId);
+    if (countsRes.success) {
+      setStats({
+        followers: countsRes.followers,
+        following: countsRes.following,
+      });
+    }
+
+    // Check Status (Only if viewing someone else)
+    if (!isOwnProfile && currentUser?.id) {
+      const statusRes = await getFollowStatus(currentUser.id, userId);
+      if (statusRes.success) {
+        setIsFollowing(statusRes.isFollowing);
+      }
+    }
+  };
+
   const getUserPosts = async (userId) => {
-    if (!user || !userId) return; // HEAD 的安全检查保留
-        
-        // 使用传入的 userId，如果没有传则默认用自己的
-    let targetId = userId || user.id;
-    // Fetch posts specifically for this userId
+    if (!userId) return;
     let res = await fetchPosts(10, userId);
     if (res.success) {
       setPosts(res.data);
     }
   };
 
+  // --- NEW: Toggle Follow Function ---
+  const handleToggleFollow = async () => {
+    if (isOwnProfile) return;
+
+    if (isFollowing) {
+      // Unfollow Logic
+      const res = await unfollowUser(currentUser.id, profileUser.accountid);
+      if (res.success) {
+        setIsFollowing(false);
+        setStats((prev) => ({ ...prev, followers: prev.followers - 1 }));
+      } else {
+        Alert.alert("Error", "Could not unfollow");
+      }
+    } else {
+      // Follow Logic
+      const res = await followUser(currentUser.id, profileUser.accountid);
+      if (res.success) {
+        setIsFollowing(true);
+        setStats((prev) => ({ ...prev, followers: prev.followers + 1 }));
+      } else {
+        Alert.alert("Error", "Could not follow");
+      }
+    }
+  };
 
   const onLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -115,18 +168,20 @@ const Profile = () => {
     );
   }
 
-
   return (
     <ScreenWrapper bg="white">
       <FlatList
         data={posts}
-        // Pass 'profileUser' (the user being viewed) and 'isOwnProfile' flag
         ListHeaderComponent={
           <UserHeader
             user={profileUser}
             router={router}
             handleLogout={handleLogout}
             isOwnProfile={isOwnProfile}
+            // Pass new props to header
+            isFollowing={isFollowing}
+            onToggleFollow={handleToggleFollow}
+            stats={stats}
           />
         }
         ListHeaderComponentStyle={{ marginBottom: 30 }}
@@ -134,17 +189,8 @@ const Profile = () => {
         contentContainerStyle={styles.listStyle}
         keyExtractor={(item) => item.postid.toString()}
         renderItem={({ item }) => (
-          <PostCard
-            item={item}
-            currentUser={user} // Pass logged-in user for Like logic
-            router={router}
-          />
+          <PostCard item={item} currentUser={currentUser} router={router} />
         )}
-        onEndReached={() => {
-          // Logic to load more posts if needed
-          // getUserPosts(profileUser.id);
-        }}
-        onEndReachedThreshold={0}
         ListFooterComponent={
           posts.length === 0 ? (
             <View style={{ alignItems: "center", marginTop: 20 }}>
@@ -162,21 +208,27 @@ const Profile = () => {
 // ==========================================
 // USER HEADER COMPONENT
 // ==========================================
-const UserHeader = ({ user, router, handleLogout, isOwnProfile }) => {
+const UserHeader = ({
+  user,
+  router,
+  handleLogout,
+  isOwnProfile,
+  isFollowing,
+  onToggleFollow,
+  stats,
+}) => {
   return (
     <View
       style={{ flex: 1, backgroundColor: "white", paddingHorizontal: wp(4) }}
     >
       <Header title="Profile" showBackButton={true} marginBottom={30} />
 
-      {/* Logout Button: Only show if it is MY profile */}
       {isOwnProfile && (
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Icon name="logout" color={theme.colors.rose} />
         </TouchableOpacity>
       )}
 
-      {/* User Info Area */}
       <View style={styles.container}>
         <View style={{ gap: 15 }}>
           {/* Avatar & Edit Button */}
@@ -186,7 +238,6 @@ const UserHeader = ({ user, router, handleLogout, isOwnProfile }) => {
               size={hp(12)}
               rounded={theme.radius.xxl * 1.4}
             />
-            {/* Edit Icon: Only show if it is MY profile */}
             {isOwnProfile && (
               <Pressable
                 style={styles.editIcon}
@@ -205,15 +256,46 @@ const UserHeader = ({ user, router, handleLogout, isOwnProfile }) => {
             </Text>
           </View>
 
+          {/* --- NEW: STATS ROW --- */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{stats.followers}</Text>
+              <Text style={styles.statLabel}>Followers</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{stats.following}</Text>
+              <Text style={styles.statLabel}>Following</Text>
+            </View>
+          </View>
+
+          {/* --- NEW: FOLLOW BUTTON (Only for others) --- */}
+          {!isOwnProfile && (
+            <TouchableOpacity
+              style={[
+                styles.followButton,
+                isFollowing && styles.followingButton,
+              ]}
+              onPress={onToggleFollow}
+            >
+              <Text
+                style={[
+                  styles.followButtonText,
+                  isFollowing && styles.followingButtonText,
+                ]}
+              >
+                {isFollowing ? "Unfollow" : "Follow"}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {/* Contact Info & Bio */}
           <View style={{ gap: 10 }}>
-            {/* Email */}
             <View style={styles.info}>
               <Icon name="mail" size={20} color={theme.colors.textLight} />
               <Text style={styles.infoText}>{user && user.email}</Text>
             </View>
 
-            {/* Phone */}
             {(user?.phoneNumber || user?.phonenumber) && (
               <View style={styles.info}>
                 <Icon name="call" size={20} color={theme.colors.textLight} />
@@ -223,19 +305,16 @@ const UserHeader = ({ user, router, handleLogout, isOwnProfile }) => {
               </View>
             )}
 
-            {/* Bio */}
             {user && user.bio && (
               <Text style={styles.infoText}>{user.bio}</Text>
             )}
           </View>
 
           {/* Features Section: ONLY show if it is MY profile */}
-          {/* We hide this for other users because they can't see your tasks */}
           {isOwnProfile && (
             <View style={styles.menuSection}>
               <Text style={styles.menuTitle}>Features</Text>
 
-              {/* Request Help */}
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => router.push("/requestHelp")}
@@ -252,7 +331,6 @@ const UserHeader = ({ user, router, handleLogout, isOwnProfile }) => {
                 <Icon name="arrowRight" size={20} color="#C7C7CC" />
               </TouchableOpacity>
 
-              {/* Peer Helper Application */}
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => router.push("/phApplication")}
@@ -269,7 +347,6 @@ const UserHeader = ({ user, router, handleLogout, isOwnProfile }) => {
                 <Icon name="arrowRight" size={20} color="#C7C7CC" />
               </TouchableOpacity>
 
-              {/* My Tasks */}
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => router.push("counselor/myTask")}
@@ -340,6 +417,56 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+
+  // --- NEW STYLES ---
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 20,
+    marginVertical: 10,
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: hp(2.2),
+    fontWeight: "bold",
+    color: theme.colors.textDark,
+  },
+  statLabel: {
+    fontSize: hp(1.5),
+    color: theme.colors.textLight,
+  },
+  statDivider: {
+    height: 20,
+    width: 1,
+    backgroundColor: "#e5e5e5",
+  },
+  followButton: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 10,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+    marginTop: 5,
+    marginBottom: 10,
+    marginHorizontal: 40,
+  },
+  followingButton: {
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  followButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: hp(2),
+  },
+  followingButtonText: {
+    color: theme.colors.primary,
+  },
+  // ----------------
+
   // Menu / Features
   menuSection: {
     marginTop: 25,
