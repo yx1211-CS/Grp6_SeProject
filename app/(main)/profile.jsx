@@ -27,7 +27,7 @@ import { fetchPosts } from "../../services/postService";
 import { getUserData } from "../../services/userService"; // Needed to fetch other users
 
 const Profile = () => {
-  const { user: currentUser } = useAuth(); // Rename 'user' to 'currentUser' for clarity
+  const {user} = useAuth(); // Rename 'user' to 'currentUser' for clarity
   const router = useRouter();
   const params = useLocalSearchParams(); // Get parameters passed from navigation
 
@@ -37,29 +37,29 @@ const Profile = () => {
 
   // Logic: Is this my profile or someone else's?
   // If no params.userId is passed, or if it matches my ID, it's mine.
-  const isOwnProfile = !params?.userId || params?.userId == currentUser?.id;
+  const isOwnProfile = !params?.userId || params?.userId == user?.id;
 
   useEffect(() => {
     if(user){
       loadProfileData();
     }
-    }, [params?.userId, currentUser]);
+    }, [user, params?.userId]);
 
   const loadProfileData = async () => {
     setLoading(true);
 
-    let targetUserId = currentUser?.id;
+    let targetUserId = user?.id;
 
     if (isOwnProfile) {
       // Case A: Viewing My Profile
-      setProfileUser(currentUser);
-      targetUserId = currentUser?.id;
+      setProfileUser(user);
+      targetUserId = user?.id;
     } else {
       // Case B: Viewing Someone Else
       let res = await getUserData(params.userId);
       if (res.success) {
         setProfileUser(res.data);
-        targetUserId = res.data.accountid; // Ensure we get the correct ID key
+        targetUserId = res.data.accountid || res.data.id; // Ensure we get the correct ID key
       } else {
         Alert.alert("Error", "User not found");
         router.back();
@@ -73,7 +73,7 @@ const Profile = () => {
   };
 
   const getUserPosts = async (userId) => {
-    if (!user) return; // HEAD 的安全检查保留
+    if (!user || !userId) return; // HEAD 的安全检查保留
         
         // 使用传入的 userId，如果没有传则默认用自己的
     let targetId = userId || user.id;
@@ -136,7 +136,7 @@ const Profile = () => {
         renderItem={({ item }) => (
           <PostCard
             item={item}
-            currentUser={currentUser} // Pass logged-in user for Like logic
+            currentUser={user} // Pass logged-in user for Like logic
             router={router}
           />
         )}
