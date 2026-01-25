@@ -253,6 +253,19 @@ export default function CounselorDashboard() {
             <Text style={styles.actionTitle}>Report Dashboard</Text>
           </View>
         </TouchableOpacity>
+
+        {/* Mood History Button */}
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() => router.push("/counselor/userListMood")}
+        >
+          <View style={[styles.iconBox, { backgroundColor: "#FFF3E0" }]}>
+            <Text style={styles.icon}>😊</Text>
+          </View>
+          <View style={styles.actionTextContainer}>
+            <Text style={styles.actionTitle}>Mood History</Text>
+          </View>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );

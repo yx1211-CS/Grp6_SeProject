@@ -10,7 +10,7 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
 } from "react-native";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
@@ -19,11 +19,11 @@ import { supabase } from "../../lib/supabase";
 
 export default function MyTasks() {
   const router = useRouter();
-  const { user } = useAuth(); // 获取当前登录的 Helper
+  const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState("Active"); // 'Active' | 'Completed'
+  const [activeTab, setActiveTab] = useState("Active");
 
   useEffect(() => {
     if (user) fetchMyTasks();
@@ -39,7 +39,6 @@ export default function MyTasks() {
   const fetchMyTasks = async () => {
     try {
       setLoading(true);
-      // 查询状态：如果是 Active Tab，查 'Assigned'；如果是 Completed Tab，查 'Completed'
       const statusFilter = activeTab === "Active" ? "Assigned" : "Completed";
 
       const { data, error } = await supabase
@@ -75,7 +74,7 @@ export default function MyTasks() {
   };
 
   const handleComplete = (task) => {
-    // 跳转到提交报告的页面（还没有）
+    // submit report(no done)
     Alert.alert(
       "Complete Task",
       "Have you finished helping this student? You should submit a report.",

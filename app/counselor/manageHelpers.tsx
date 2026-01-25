@@ -336,7 +336,6 @@ export default function ManageHelpers() {
 }
 
 const styles = StyleSheet.create({
-  // ... 之前的样式保留 ...
   header: {
     flexDirection: "row",
     alignItems: "center",

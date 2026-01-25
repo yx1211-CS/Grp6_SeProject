@@ -193,7 +193,7 @@ export default function UserFeedback() {
 
             <ScrollView contentContainerStyle={{ padding: 20 }}>
               <View style={styles.detailSection}>
-                <Text style={styles.label}>Student:</Text>
+                <Text style={styles.label}>User:</Text>
                 <Text style={styles.value}>
                   @{selectedItem?.user?.username}
                 </Text>
