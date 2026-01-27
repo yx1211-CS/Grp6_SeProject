@@ -172,6 +172,12 @@ const Home = () => {
 
           {/* RIGHT SIDE: Action Icons */}
           <View style={styles.icons}>
+
+            {/* 🔥 NEW: Find Friends Button */}
+            <Pressable onPress={() => router.push('findFriends')}>
+                <Icon name="search" size={hp(3.2)} strokeWidth={2} color={theme.colors.text} />
+            </Pressable>
+
             <Pressable onPress={() => {
                 setNotificationCount(0); // 点击后清零
                 router.push("notifications"); // 跳转

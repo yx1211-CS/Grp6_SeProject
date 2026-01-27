@@ -216,3 +216,124 @@ export const getFollowCounts = async (userId) => {
     return { success: false, msg: error.message };
   }
 };
+
+
+//Find similar interest friends
+export const getUsersWithSimilarInterests = async (currentUserId) => {
+    try {
+        // STEP 1: 获取我的兴趣 ID
+        const { data: myInterests, error: interestError } = await supabase
+            .from('user_interest')
+            .select('interestid')
+            .eq('userid', currentUserId);
+
+        if (interestError) throw interestError;
+        if (!myInterests || myInterests.length === 0) return { success: true, data: [] };
+
+        const interestIds = myInterests.map(i => i.interestid);
+
+        // 🔥 STEP 2: 获取我已经关注的人 (查 follower 表)
+        // 逻辑：我是 follower，我要找出我正在 following 谁
+        //const { data: followingList, error: followError } = await supabase
+        //    .from('follower')
+        //    .select('following_id') 
+        //    .eq('follower_id', currentUserId);
+        //if (followError) throw followError;
+
+
+        // 创建一个排除名单 Set
+        const excludeIds = new Set();
+        excludeIds.add(currentUserId); // 排除我自己
+
+        // 把我关注的人的 ID 都加进去
+        //followingList.forEach(item => {
+        //    excludeIds.add(item.following_id);
+        //});
+
+        // STEP 3: 寻找有相同兴趣的其他用户
+        // (这部分逻辑不变，但现在排除了已关注的人)
+        const { data: matches, error: matchError } = await supabase
+            .from('user_interest')
+            .select(`
+                userid,
+                interestid,
+                user:userid (
+                    accountid,
+                    username,
+                    profileimage,
+                    bio,
+                    address
+                )
+            `)
+            .in('interestid', interestIds);
+
+        if (matchError) throw matchError;
+
+        // STEP 4: 去重和过滤
+        const uniqueUsers = {};
+
+        matches.forEach(match => {
+            const user = match.user;
+            
+            // 如果用户不存在，或者已经在排除名单里(已关注)，就跳过
+            if (!user || excludeIds.has(user.accountid)) return;
+
+            if (!uniqueUsers[user.accountid]) {
+                uniqueUsers[user.accountid] = {
+                    ...user,
+                    matchedInterests: [] 
+                };
+            }
+            uniqueUsers[user.accountid].matchedInterests.push(match.interestid);
+        });
+
+        return { success: true, data: Object.values(uniqueUsers) };
+
+    } catch (error) {
+        console.log('getUsersWithSimilarInterests error: ', error);
+        return { success: false, msg: error.message };
+    }
+}
+
+// 🔥 新增这个辅助函数：获取我正在关注的所有人 ID
+// 这样前端页面加载时，就可以知道谁已经是 "Following" 状态了
+export const getUserFollowingList = async (userId) => {
+    try {
+        const { data, error } = await supabase
+            .from('follower')
+            .select('following_id')
+            .eq('follower_id', userId);
+        
+        if (error) throw error;
+        
+        // 返回一个纯 ID 数组: ['user_id_1', 'user_id_2']
+        return { success: true, data: data.map(item => item.following_id) };
+    } catch (error) {
+        console.log('getUserFollowingList error:', error);
+        return { success: false, msg: error.message };
+    }
+}
+
+export const getUserInterests = async (userId) => {
+    try {
+        const { data, error } = await supabase
+            .from('user_interest')
+            .select(`
+                interest:interestid (interestname)
+            `)
+            .eq('userid', userId);
+
+        if (error) {
+            console.log('getUserInterests error:', error.message);
+            return { success: false, data: [] };
+        }
+
+        // Transform data from [{interest: {interestname: 'Coding'}}] to ['Coding']
+        const formattedInterests = data.map(item => item.interest?.interestname).filter(Boolean);
+        
+        return { success: true, data: formattedInterests };
+    } catch (error) {
+        console.log('getUserInterests error:', error);
+        return { success: false, msg: error.message };
+    }
+}

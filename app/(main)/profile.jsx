@@ -30,6 +30,7 @@ import {
   getFollowStatus,
   getUserData,
   unfollowUser,
+  getUserInterests,
 } from "../../services/userService";
 
 const Profile = () => {
@@ -40,6 +41,9 @@ const Profile = () => {
   const [posts, setPosts] = useState([]);
   const [profileUser, setProfileUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // --- NEW: Interests State ---
+  const [interests, setInterests] = useState([]);
 
   // --- NEW: Follow State ---
   const [isFollowing, setIsFollowing] = useState(false);
@@ -83,7 +87,16 @@ const Profile = () => {
     // 2. Fetch Posts
     await getUserPosts(targetUserId);
 
+    // C. Fetch Interests (🔥 NEW)
+    fetchInterests(targetUserId);
+
     setLoading(false);
+  };
+
+  // 🔥 NEW: Fetch Interests Function
+  const fetchInterests = async (targetId) => {
+    let res = await getUserInterests(targetId);
+    if (res.success) setInterests(res.data);
   };
 
   const fetchFollowInfo = async (userId) => {
@@ -182,6 +195,7 @@ const Profile = () => {
             isFollowing={isFollowing}
             onToggleFollow={handleToggleFollow}
             stats={stats}
+            interests={interests}
           />
         }
         ListHeaderComponentStyle={{ marginBottom: 30 }}
@@ -216,6 +230,7 @@ const UserHeader = ({
   isFollowing,
   onToggleFollow,
   stats,
+  interests,
 }) => {
   return (
     <View
@@ -308,12 +323,37 @@ const UserHeader = ({
             {user && user.bio && (
               <Text style={styles.infoText}>{user.bio}</Text>
             )}
+
+            {/* 🔥 NEW: Interests Section 🔥 */}
+          {interests.length > 0 && (
+             <View style={styles.interestsContainer}>
+                {interests.map((tag, index) => (
+                    <View key={index} style={styles.tag}>
+                        <Text style={styles.tagText}>{tag}</Text>
+                    </View>
+                ))}
+             </View>
+          )}
+
           </View>
 
           {/* Features Section: ONLY show if it is MY profile */}
           {isOwnProfile && (
             <View style={styles.menuSection}>
               <Text style={styles.menuTitle}>Features</Text>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => router.push("editInterest")}
+              >
+                <View style={styles.menuIconBox}>
+                  <Icon name="heart" size={24} color={theme.colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.menuText}>My Interests</Text>
+                </View>
+                <Icon name="arrowRight" size={20} color="#C7C7CC" />
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.menuItem}
@@ -442,6 +482,27 @@ const styles = StyleSheet.create({
     height: 20,
     width: 1,
     backgroundColor: "#e5e5e5",
+  },
+  // 🔥 Interests Styles
+  interestsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginVertical: 10,
+  },
+  tag: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  tagText: {
+    fontSize: hp(1.5),
+    color: theme.colors.textDark,
+    fontWeight: "500",
   },
   followButton: {
     backgroundColor: theme.colors.primary,
