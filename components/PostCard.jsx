@@ -4,9 +4,12 @@ import moment from "moment";
 import { useEffect, useState } from "react";
 import {
   Alert,
+  Modal,
+  Pressable,
   Share,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -14,15 +17,18 @@ import RenderHtml from "react-native-render-html";
 import Icon from "../assets/icons";
 import { theme } from "../constants/theme";
 import { hp, stripHtmlTags, wp } from "../helpers/common";
-import {getSupabaseFileUrl, getUserImageSource} from "../services/imageService";
+import { supabase } from "../lib/supabase";
+import {
+  getSupabaseFileUrl,
+  getUserImageSource,
+} from "../services/imageService";
+import { createNotification } from "../services/notificationService";
 import {
   createPostLike,
   removePost,
   removePostLike,
 } from "../services/postService";
 import Avatar from "./Avatar";
-import { createNotification } from '../services/notificationService'
-
 
 const textStyle = {
   color: theme.colors.text,
@@ -38,17 +44,21 @@ const tagsStyles = {
 };
 
 const PostCard = ({
-    item,
-    currentUser,
-    router,
-    hasShadow = true,
-    showMoreIcon = true,
-    onDelete, // 👈 新增：接收一个 onDelete 回调函数
-    showDelete = true
-    
+  item,
+  currentUser,
+  router,
+  hasShadow = true,
+  showMoreIcon = true,
+  onDelete,
+  showDelete = true,
 }) => {
-    
-    const [likes, setLikes] = useState([]);
+  const [likes, setLikes] = useState([]);
+
+  // ———— REPORT STATES ————
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [showOtherInput, setShowOtherInput] = useState(false);
+  const [customReason, setCustomReason] = useState("");
+  const reportReasons = ["Spam", "Harassment", "Inappropriate"];
 
   useEffect(() => {
     setLikes(item?.reactions || []);
@@ -61,25 +71,67 @@ const PostCard = ({
     elevation: 1,
   };
 
-  // --- NAVIGATION FUNCTIONS ---
-
+  // --- NAVIGATION ---
   const openPostDetails = () => {
     if (!item?.postid) return;
-    router.push({
-      pathname: "postDetails",
-      params: { postId: item?.postid },
-    });
+    router.push({ pathname: "postDetails", params: { postId: item?.postid } });
   };
 
-  // NEW: Open User Profile
   const openProfile = () => {
-    // Support both casing conventions just to be safe
     const authorId = item?.userid || item?.userId;
     router.push({ pathname: "profile", params: { userId: authorId } });
   };
 
-  // --- MENU / ACTION FUNCTIONS ---
+  // --- REPORT LOGIC ---
+  const handleReportSubmit = async (reason) => {
+    if (reason === "Other" && !customReason.trim()) {
+      Alert.alert("Required", "Please tell us the reason.");
+      return;
+    }
 
+    const finalReason = reason === "Other" ? customReason : reason;
+
+    const { error: insertError } = await supabase
+      .from("reported_content")
+      .insert({
+        postid: item?.postid,
+        reporterid: currentUser?.accountid || currentUser?.id,
+        reportreason: finalReason,
+        reportstatus: "Pending",
+      });
+
+    if (insertError) {
+      Alert.alert("Report Fail", "Failed to submit report. Please try again.");
+      return;
+    }
+
+    // check report time
+    const { count, error: countError } = await supabase
+      .from("reported_content")
+      .select("*", { count: "exact", head: true })
+      .eq("postid", item?.postid)
+      .eq("reportstatus", "Pending");
+
+    if (!countError && count >= 3) {
+      // if >=3 then status change to hide
+      await supabase
+        .from("post")
+        .update({ ishidden: true })
+        .eq("postid", item?.postid);
+
+      console.log(
+        `Post ${item.postid} has been auto-hidden after ${count} reports.`,
+      );
+    }
+
+    //success and reset status
+    Alert.alert("Report Submitted", "Thanks for reporting!");
+    setReportModalVisible(false);
+    setShowOtherInput(false);
+    setCustomReason("");
+  };
+
+  // --- MENU ACTIONS ---
   const onMenuPress = () => {
     const isOwner = currentUser?.id == item?.userid;
 
@@ -88,7 +140,7 @@ const PostCard = ({
         { text: "Cancel", style: "cancel" },
         {
           text: "Report Post",
-          onPress: () => console.log("Reported logic here..."),
+          onPress: () => setReportModalVisible(true),
         },
       ]);
     } else {
@@ -96,9 +148,8 @@ const PostCard = ({
         { text: "Cancel", style: "cancel" },
         {
           text: "Edit",
-          onPress: () => {
-            router.push({ pathname: "newPost", params: { ...item } });
-          },
+          onPress: () =>
+            router.push({ pathname: "newPost", params: { ...item } }),
         },
         {
           text: "Delete",
@@ -109,68 +160,44 @@ const PostCard = ({
     }
   };
 
-    // 执行删除逻辑
-    const handlePostDelete = async () => {
-        const res = await removePost(item?.postid);
-        if (res.success) {
-            // 这里有个小问题：Profile 列表不会自动刷新，除非你刷新页面
-            // 但帖子确实被删除了
-            Alert.alert('Success', 'Post deleted successfully');
-            if (onDelete) {
-              onDelete(); 
-            }
-        } else {
-            Alert.alert('Error', res.msg);
-        }
-    };
-  
+  const handlePostDelete = async () => {
+    const res = await removePost(item?.postid);
+    if (res.success) {
+      Alert.alert("Success", "Post deleted successfully");
+      if (onDelete) onDelete();
+    } else {
+      Alert.alert("Error", res.msg);
+    }
+  };
 
   const onLike = async () => {
     const liked =
       likes.filter((r) => r.userid == currentUser?.accountid).length > 0;
-
     if (liked) {
       let updatedLikes = likes.filter(
         (r) => r.userid != currentUser?.accountid,
       );
       setLikes([...updatedLikes]);
-
       const res = await removePostLike(item?.postid, currentUser?.accountid);
-      if (!res.success) {
-        Alert.alert("Post", "Something went wrong!");
-        setLikes([...likes]);
-      }
+      if (!res.success) setLikes([...likes]);
     } else {
       const data = {
         userid: currentUser?.accountid,
         postid: item?.postid,
         reactiontype: "like",
       };
-
       setLikes([...likes, data]);
       const res = await createPostLike(data);
-
-            // 🔥 2. 发送通知逻辑 (只有点赞成功才发)
-            if (res.success) {
-                // 如果不是自己给自己点赞，才发通知
-                if (currentUser?.id != item?.userid) {
-                    let notify = {
-                        senderid: currentUser?.id,
-                        receiverid: item?.userid,
-                        title: 'Liked your post',
-                        data: JSON.stringify({ postId: item?.postid, commentId: null })
-                    }
-                    createNotification(notify);
-                }
-            }
-
-            if (!res.success) {
-                Alert.alert('Post', 'Something went wrong!');
-                setLikes(likes);
-            }
-        }
-    
-    };
+      if (res.success && currentUser?.id != item?.userid) {
+        createNotification({
+          senderid: currentUser?.id,
+          receiverid: item?.userid,
+          title: "Liked your post",
+          data: JSON.stringify({ postId: item?.postid }),
+        });
+      }
+    }
+  };
 
   const onShare = async () => {
     let content = { message: stripHtmlTags(item?.postcontent) };
@@ -184,7 +211,6 @@ const PostCard = ({
   return (
     <View style={[styles.container, hasShadow && shadowStyles]}>
       <View style={styles.header}>
-        {/* UPDATED: Wrapped User Info in TouchableOpacity for Profile Navigation */}
         <TouchableOpacity style={styles.userInfo} onPress={openProfile}>
           <Avatar
             size={hp(4.5)}
@@ -207,7 +233,6 @@ const PostCard = ({
         </TouchableOpacity>
       </View>
 
-      {/* Post Content */}
       <View style={styles.content}>
         <View style={styles.postBody}>
           {item?.postcontent && (
@@ -219,11 +244,9 @@ const PostCard = ({
           )}
         </View>
 
-        {/* Media Display */}
-        {item?.postfile && (
+        {item?.postfile && !item?.postfile.includes("postVideos") && (
           <Image
             source={getSupabaseFileUrl("postImages", item?.postfile)}
-            transition={100}
             style={styles.postMedia}
             contentFit="cover"
           />
@@ -239,7 +262,6 @@ const PostCard = ({
         )}
       </View>
 
-      {/* Footer Actions */}
       <View style={styles.footer}>
         <View style={styles.footerButton}>
           <TouchableOpacity onPress={onLike}>
@@ -264,9 +286,88 @@ const PostCard = ({
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ———— Report Modal ———— */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={reportModalVisible}
+        onRequestClose={() => {
+          setReportModalVisible(false);
+          setShowOtherInput(false);
+        }}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            setReportModalVisible(false);
+            setShowOtherInput(false);
+          }}
+        >
+          <Pressable
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={styles.modalTitle}>Report Post</Text>
+
+            {!showOtherInput ? (
+              <>
+                {reportReasons.map((reason) => (
+                  <TouchableOpacity
+                    key={reason}
+                    style={styles.modalButton}
+                    onPress={() => handleReportSubmit(reason)}
+                  >
+                    <Text style={styles.modalButtonText}>{reason}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => setShowOtherInput(true)}
+                >
+                  <Text style={styles.modalButtonText}>Other...</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.reasonInput}
+                  placeholder="Tell us why you're reporting..."
+                  multiline
+                  value={customReason}
+                  onChangeText={setCustomReason}
+                  autoFocus
+                />
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.submitButton]}
+                  onPress={() => handleReportSubmit("Other")}
+                >
+                  <Text style={styles.submitButtonText}>Submit Report</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => setShowOtherInput(false)}
+                >
+                  <Text style={styles.backButtonText}>Back</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={() => {
+                setReportModalVisible(false);
+                setShowOtherInput(false);
+              }}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
-}
+};
 
 export default PostCard;
 
@@ -275,13 +376,11 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 15,
     borderRadius: theme.radius.xxl * 1.1,
-    borderCurve: "continuous",
     padding: 10,
     paddingVertical: 12,
     backgroundColor: "white",
     borderWidth: 0.5,
     borderColor: theme.colors.gray,
-    shadowColor: "#000",
   },
   header: { flexDirection: "row", justifyContent: "space-between" },
   userInfo: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -296,12 +395,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.fonts.medium,
   },
   content: { gap: 10 },
-  postMedia: {
-    height: hp(40),
-    width: "100%",
-    borderRadius: theme.radius.xl,
-    borderCurve: "continuous",
-  },
+  postMedia: { height: hp(40), width: "100%", borderRadius: theme.radius.xl },
   postBody: { marginLeft: 5 },
   footer: { flexDirection: "row", alignItems: "center", gap: 15 },
   footerButton: {
@@ -311,4 +405,58 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   count: { color: theme.colors.text, fontSize: hp(1.8) },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "85%",
+    backgroundColor: "white",
+    borderRadius: 20,
+    paddingVertical: 20,
+    alignItems: "center",
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: theme.colors.textDark,
+  },
+  modalButton: {
+    width: "100%",
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+    alignItems: "center",
+  },
+  modalButtonText: {
+    fontSize: 16,
+    color: theme.colors.primary,
+    fontWeight: "500",
+  },
+  inputContainer: { width: "90%", alignItems: "center" },
+  reasonInput: {
+    width: "100%",
+    height: hp(12),
+    backgroundColor: "#f9f9f9",
+    borderRadius: 12,
+    padding: 15,
+    textAlignVertical: "top",
+    fontSize: hp(1.7),
+    borderWidth: 1,
+    borderColor: "#eee",
+    marginBottom: 10,
+  },
+  submitButton: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 12,
+    borderBottomWidth: 0,
+  },
+  submitButtonText: { color: "white", fontWeight: "bold" },
+  backButtonText: { color: theme.colors.textLight },
+  cancelButton: { borderBottomWidth: 0, marginTop: 5 },
+  cancelButtonText: { fontSize: 16, color: "#FF3B30", fontWeight: "600" },
 });

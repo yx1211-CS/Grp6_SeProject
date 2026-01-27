@@ -49,6 +49,7 @@ const ModeratorLogin = () => {
       return;
     }
     setLoading(true);
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email: emailRef.current.trim(),
       password: passwordRef.current.trim(),
@@ -59,8 +60,43 @@ const ModeratorLogin = () => {
       Alert.alert("Access Denied", error.message);
       return;
     }
-    if (data.session) {
-      router.replace("/moderator");
+
+    try {
+      // check role
+      const { data: profile, error: profileError } = await supabase
+        .from("account")
+        .select("accountstatus, role")
+        .eq("accountid", data.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        throw new Error("Profile not found.");
+      }
+
+      //block banned user
+      if (profile.accountstatus === "Banned") {
+        await supabase.auth.signOut();
+        setLoading(false);
+        Alert.alert("Access Denied", "Your account is banned.");
+        return;
+      }
+
+      // onlymoderator login
+      if (profile.role !== "Moderator") {
+        await supabase.auth.signOut();
+        setLoading(false);
+        Alert.alert("Unauthorized", "This is for Moderators only.");
+        return;
+      }
+
+      if (data.session) {
+        router.replace("/moderator");
+      }
+    } catch (err) {
+      setLoading(false);
+      await supabase.auth.signOut();
+      console.log("Moderator check error:", err);
+      Alert.alert("Login Error", "Failed to verify moderator credentials.");
     }
   };
 
