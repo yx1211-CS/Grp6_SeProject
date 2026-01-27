@@ -3,16 +3,16 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Keyboard,
-    Platform,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import ScreenWrapper from "../../components/ScreenWrapper";
@@ -117,7 +117,7 @@ export default function CounselorLogin() {
 
         const role = (user.role || "").toLowerCase();
         if (role !== "counselor") {
-          Alert.alert("Restricted", "This area is for Counselors only.");
+          Alert.alert("Restricted", "This is for Counselors only.");
           await supabase.auth.signOut();
           setLoading(false);
           return;

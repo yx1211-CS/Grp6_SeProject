@@ -43,15 +43,42 @@ const Login = () => {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       Alert.alert("Login", error.message);
+      return;
+    }
+
+    ///here is check if user banned cant login
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from("account")
+        .select("accountstatus")
+        .eq("accountid", data.user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      //say goodbye with banned user
+      if (profile && profile.accountstatus === "Banned") {
+        await supabase.auth.signOut(); //clear user login
+        setLoading(false);
+        Alert.alert("Access Denied", "Your account has been banned.");
+        return;
+      }
+
+      // if any error to affect user cant login will prompt this
+      setLoading(false);
+    } catch (err) {
+      setLoading(false);
+      await supabase.auth.signOut();
+      console.log("Database Error Details:", err);
+      Alert.alert("Login Debug", err.message || "Unknown error");
     }
   };
 

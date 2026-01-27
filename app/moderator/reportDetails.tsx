@@ -21,22 +21,17 @@ import { supabase } from "../../lib/supabase";
 export default function ReportDetails() {
   const router = useRouter();
   const params = useLocalSearchParams();
-
-  // 获取页面传参
   const { postId, content, accusedName, isHidden, reportCount, postImage } =
     params;
-
-  // 转换 isHidden 字符串为布尔值 (路由传参通常变成字符串)
   const isPostHidden = isHidden === "true";
 
   const [loading, setLoading] = useState(false);
   const [reportList, setReportList] = useState([]);
   const [fetchingList, setFetchingList] = useState(true);
 
-  // 控制图片放大 Modal
+  // zoom in photo
   const [isImageModalVisible, setIsImageModalVisible] = useState(false);
-
-  // 生成图片 URL
+  //image url get
   const getPostImageSource = (path) => {
     if (!path) return null;
     const { data } = supabase.storage.from("postImages").getPublicUrl(path);
@@ -45,7 +40,7 @@ export default function ReportDetails() {
 
   const imageSource = getPostImageSource(postImage);
 
-  // 1. 获取该帖子的所有举报记录
+  // get post reported hgistory
   useEffect(() => {
     const fetchReportDetails = async () => {
       const { data, error } = await supabase
@@ -66,7 +61,7 @@ export default function ReportDetails() {
     fetchReportDetails();
   }, [postId]);
 
-  // 2. 隐藏帖子 (Hide Post)
+  // Hide Post
   const handleHideContent = async () => {
     Alert.alert(
       "Confirm Hide",
@@ -79,14 +74,14 @@ export default function ReportDetails() {
           onPress: async () => {
             setLoading(true);
 
-            // A. 更新举报状态 -> Resolved_Hidden
+            //  Resolved_Hidden
             const { error: reportError } = await supabase
               .from("reported_content")
               .update({ reportstatus: "Resolved_Hidden" })
               .eq("postid", postId)
               .eq("reportstatus", "Pending");
 
-            // B. 更新帖子状态 -> ishidden: true
+            //  ishidden: true
             const { error: postError } = await supabase
               .from("post")
               .update({ ishidden: true })
@@ -106,22 +101,30 @@ export default function ReportDetails() {
     );
   };
 
-  // 3. 忽略举报 (Ignore Reports)
+  // Ignore Reports
   const handleIgnore = async () => {
     setLoading(true);
-    // 更新举报状态 -> Resolved_Ignored
-    const { error } = await supabase
+
+    // update report
+    const { error: reportError } = await supabase
       .from("reported_content")
       .update({ reportstatus: "Resolved_Ignored" })
       .eq("postid", postId)
       .eq("reportstatus", "Pending");
 
+    //change the post status
+    const { error: postError } = await supabase
+      .from("post")
+      .update({ ishidden: false })
+      .eq("postid", postId);
+
     setLoading(false);
 
-    if (!error) {
+    if (!reportError && !postError) {
+      Alert.alert("Success", "Reports ignored and post is now visible again.");
       router.back();
     } else {
-      Alert.alert("Error", error.message);
+      Alert.alert("Error", "Failed to restore post visibility.");
     }
   };
 
@@ -144,7 +147,7 @@ export default function ReportDetails() {
       <ScrollView
         contentContainerStyle={{ padding: wp(4), paddingBottom: 100 }}
       >
-        {/* Banner: 如果帖子已经是隐藏状态 */}
+        {/* Bannerif post is hidded*/}
         {isPostHidden && (
           <View style={styles.warningBanner}>
             <Text style={styles.warningText}>

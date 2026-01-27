@@ -35,7 +35,6 @@ const Home = () => {
   const handlePostEvent = async (payload) => {
     //console.log('Realtime Payload NEW:', payload.new);
     if (payload.eventType == "INSERT" && payload?.new?.postid) {
-      
       let newPost = { ...payload.new };
       let res = await getUserData(newPost.userid);
 
@@ -47,44 +46,45 @@ const Home = () => {
     }
 
     // 2. 处理删除 (DELETE)
-    if (payload.eventType == 'DELETE' && payload.old.postid) {
-        setPosts(prevPosts => {
-            // 过滤掉那个被删除 ID 的帖子
-            return prevPosts.filter(post => post.postid != payload.old.postid);
-        });
+    if (payload.eventType == "DELETE" && payload.old.postid) {
+      setPosts((prevPosts) => {
+        // 过滤掉那个被删除 ID 的帖子
+        return prevPosts.filter((post) => post.postid != payload.old.postid);
+      });
     }
 
     // 3. 处理更新 (UPDATE)
-    if (payload.eventType == 'UPDATE' && payload.new.postid) {
-        setPosts(prevPosts => {
-            return prevPosts.map(post => {
-                // 找到那个被修改的帖子
-                if (post.postid == payload.new.postid) {
-                    return {
-                        ...post, // 保留原有的 user, reactions, replies 信息
-                        postcontent: payload.new.postcontent, // 只更新文字
-                        postfile: payload.new.postfile        // 只更新图片路径
-                    };
-                }
-                return post; // 其他帖子保持不变
-            });
+    if (payload.eventType == "UPDATE" && payload.new.postid) {
+      if (payload.new.ishidden === true) {
+        setPosts((prevPosts) => {
+          // refrest repoted content
+          return prevPosts.filter((post) => post.postid != payload.new.postid);
         });
-    }
+        return;
+      }
 
+      setPosts((prevPosts) => {
+        return prevPosts.map((post) => {
+          // 找到那个被修改的帖子
+          if (post.postid == payload.new.postid) {
+            return {
+              ...post, // 保留原有的 user, reactions, replies 信息
+              postcontent: payload.new.postcontent, // 只更新文字
+              postfile: payload.new.postfile, // 只更新图片路径
+            };
+          }
+          return post; // 其他帖子保持不变
+        });
+      });
+    }
 
     //【新增：监听通知】
-    if (payload.eventType === 'INSERT' && payload.table === 'notifications') {
-      
-        if (user && user.id && payload.new.receiverid === user.id) {
-            
-            setNotificationCount(prev => prev + 1);
-        }
+    if (payload.eventType === "INSERT" && payload.table === "notifications") {
+      if (user && user.id && payload.new.receiverid === user.id) {
+        setNotificationCount((prev) => prev + 1);
+      }
     }
-  
-
   };
-
-  
 
   // 1. Subscription Effect (Runs once on Mount)
   useEffect(() => {
@@ -104,9 +104,13 @@ const Home = () => {
     // 🔥 2. 监听 Notifications (新增)
     // ✅ 适配：receiverid
     const notificationChannel = supabase
-        .channel('notifications')
-        .on('postgres_changes', {event: 'INSERT', schema: 'public', table: 'notifications'}, handlePostEvent)
-        .subscribe();
+      .channel("notifications")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        handlePostEvent,
+      )
+      .subscribe();
 
     return () => {
       supabase.removeChannel(postChannel);
@@ -172,10 +176,12 @@ const Home = () => {
 
           {/* RIGHT SIDE: Action Icons */}
           <View style={styles.icons}>
-            <Pressable onPress={() => {
+            <Pressable
+              onPress={() => {
                 setNotificationCount(0); // 点击后清零
                 router.push("notifications"); // 跳转
-            }}>
+              }}
+            >
               <Icon
                 name="heart"
                 size={hp(3.2)}
@@ -184,14 +190,11 @@ const Home = () => {
               />
 
               {/* 👇 如果有新通知，显示红点 */}
-              {
-                  notificationCount > 0 && (
-                      <View style={styles.pill}>
-                          <Text style={styles.pillText}>{notificationCount}</Text>
-                      </View>
-                  )
-              }
-              
+              {notificationCount > 0 && (
+                <View style={styles.pill}>
+                  <Text style={styles.pillText}>{notificationCount}</Text>
+                </View>
+              )}
             </Pressable>
             <Pressable onPress={() => router.push("newPost")}>
               <Icon
