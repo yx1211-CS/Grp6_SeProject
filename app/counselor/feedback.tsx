@@ -19,7 +19,7 @@ import {
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
 import { supabase } from "../../lib/supabase";
-
+import { createNotification } from "../../services/notificationService";
 export default function UserFeedback() {
   const router = useRouter();
   const [feedbacks, setFeedbacks] = useState([]);
@@ -73,12 +73,23 @@ export default function UserFeedback() {
     setReplyMessage(item.admin_reply || "");
     setModalVisible(true);
   };
-
   const handleUpdate = async (newStatus) => {
     if (!selectedItem) return;
 
     try {
-      const { error } = await supabase
+      // 1. 🔥 先获取当前登录的用户 ID (Counselor 的 ID)
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const currentUserId = user?.id;
+
+      if (!currentUserId) {
+        Alert.alert("Error", "无法获取当前管理员信息，无法发送通知。");
+        return;
+      }
+
+      // 2. 更新 Feedback 表
+      const { error: feedbackError } = await supabase
         .from("feedback")
         .update({
           status: newStatus,
@@ -87,21 +98,41 @@ export default function UserFeedback() {
         })
         .eq("feedbackid", selectedItem.feedbackid);
 
-      if (error) throw error;
+      if (feedbackError) throw feedbackError;
 
-      // send message
-      if (replyMessage && replyMessage !== selectedItem.admin_reply) {
-        await supabase.from("notifications").insert({
-          userid: selectedItem.userid,
+      // 3. 发送回复通知
+      if (replyMessage.trim()) {
+        const res = await createNotification({
+          receiverid: selectedItem.userid,
+          senderid: currentUserId, // ✅ 这里传入真实的 UUID，不再是硬编码的字符串
           title: "Feedback Reply 💬",
-          content: `Counselor has replied to your feedback: "${replyMessage}"`,
+          data: JSON.stringify({
+            type: "feedback_reply",
+            message: replyMessage,
+          }),
         });
+
+        if (res.success) {
+          console.log("✅ Reply sent successfully!");
+          Alert.alert(
+            "Success",
+            `Feedback marked as ${newStatus} and user notified.`,
+          );
+        } else {
+          console.log("❌ Notification failed:", res.msg); // 现在应该不会报错了
+          Alert.alert(
+            "Partial Success",
+            `Feedback updated, but notification failed: ${res.msg}`,
+          );
+        }
+      } else {
+        Alert.alert("Success", `Feedback marked as ${newStatus}`);
       }
 
-      Alert.alert("Success", `Feedback marked as ${newStatus}`);
       setModalVisible(false);
       fetchFeedbacks();
     } catch (error) {
+      console.log("handleUpdate error: ", error);
       Alert.alert("Error", error.message);
     }
   };
