@@ -2,12 +2,12 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { supabase } from "../../lib/supabase";
@@ -21,6 +21,7 @@ export default function UserListMood() {
   }, []);
 
   const fetchUsers = async () => {
+    // Fetch all users with role 'User'
     const { data, error } = await supabase
       .from("account")
       .select("accountid, username, email, profileimage")
@@ -40,6 +41,7 @@ export default function UserListMood() {
     <TouchableOpacity
       style={styles.userCard}
       onPress={() =>
+        // ✅ Correctly passing userId and userName to the history page
         router.push({
           pathname: "/counselor/moodHistory",
           params: { userId: item.accountid, userName: item.username },
@@ -83,7 +85,7 @@ export default function UserListMood() {
         contentContainerStyle={{ padding: 20 }}
         ListEmptyComponent={
           <Text style={{ textAlign: "center", marginTop: 50, color: "gray" }}>
-            No USers found.
+            No Users found.
           </Text>
         }
       />

@@ -11,10 +11,12 @@ import {
 } from "react-native";
 
 // Components & Config
+import { Feather } from "@expo/vector-icons";
 import Icon from "../../assets/icons";
 import Avatar from "../../components/Avatar";
 import Header from "../../components/Header";
 import Loading from "../../components/Loading";
+import MoodInputModal from "../../components/MoodInputModal";
 import PostCard from "../../components/PostCard";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
@@ -25,16 +27,18 @@ import { supabase } from "../../lib/supabase";
 // Services
 import { fetchPosts } from "../../services/postService";
 import {
+  addMood,
   followUser,
   getFollowCounts,
   getFollowStatus,
+  getLatestMood,
   getUserData,
-  unfollowUser,
   getUserInterests,
+  unfollowUser,
 } from "../../services/userService";
 
 const Profile = () => {
-  const { user: currentUser } = useAuth(); // Renamed for clarity
+  const { user: currentUser } = useAuth();
   const router = useRouter();
   const params = useLocalSearchParams();
 
@@ -42,14 +46,15 @@ const Profile = () => {
   const [profileUser, setProfileUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // --- NEW: Interests State ---
+  // States
   const [interests, setInterests] = useState([]);
-
-  // --- NEW: Follow State ---
   const [isFollowing, setIsFollowing] = useState(false);
   const [stats, setStats] = useState({ followers: 0, following: 0 });
 
-  // Logic: Is this my profile or someone else's?
+  // Mood States
+  const [currentMood, setCurrentMood] = useState(null);
+  const [moodModalVisible, setMoodModalVisible] = useState(false);
+
   const isOwnProfile = !params?.userId || params?.userId == currentUser?.id;
 
   useEffect(() => {
@@ -60,19 +65,15 @@ const Profile = () => {
 
   const loadProfileData = async () => {
     setLoading(true);
-
     let targetUserId = currentUser?.id;
 
     if (isOwnProfile) {
-      // Case A: Viewing My Profile
       setProfileUser(currentUser);
       targetUserId = currentUser?.id;
     } else {
-      // Case B: Viewing Someone Else
       let res = await getUserData(params.userId);
       if (res.success) {
         setProfileUser(res.data);
-        // Ensure we get the correct ID key
         targetUserId = res.data.accountid || res.data.id;
       } else {
         Alert.alert("Error", "User not found");
@@ -81,26 +82,34 @@ const Profile = () => {
       }
     }
 
-    // 1. Fetch Follow Data (Stats & Status)
     await fetchFollowInfo(targetUserId);
-
-    // 2. Fetch Posts
     await getUserPosts(targetUserId);
-
-    // C. Fetch Interests (🔥 NEW)
     fetchInterests(targetUserId);
-
+    fetchCurrentMood(targetUserId);
     setLoading(false);
   };
 
-  // 🔥 NEW: Fetch Interests Function
   const fetchInterests = async (targetId) => {
     let res = await getUserInterests(targetId);
     if (res.success) setInterests(res.data);
   };
 
+  const fetchCurrentMood = async (targetId) => {
+    let res = await getLatestMood(targetId);
+    if (res.success) setCurrentMood(res.data);
+  };
+
+  const handleSaveMood = async (mood, note) => {
+    const res = await addMood(currentUser.id, mood, note);
+    if (res.success) {
+      setCurrentMood({ currentmood: mood, note: note });
+      Alert.alert("Success", "Mood updated!");
+    } else {
+      Alert.alert("Error", "Could not save mood");
+    }
+  };
+
   const fetchFollowInfo = async (userId) => {
-    // Get Counts
     const countsRes = await getFollowCounts(userId);
     if (countsRes.success) {
       setStats({
@@ -108,78 +117,53 @@ const Profile = () => {
         following: countsRes.following,
       });
     }
-
-    // Check Status (Only if viewing someone else)
     if (!isOwnProfile && currentUser?.id) {
       const statusRes = await getFollowStatus(currentUser.id, userId);
-      if (statusRes.success) {
-        setIsFollowing(statusRes.isFollowing);
-      }
+      if (statusRes.success) setIsFollowing(statusRes.isFollowing);
     }
   };
 
   const getUserPosts = async (userId) => {
     if (!userId) return;
     let res = await fetchPosts(10, userId);
-    if (res.success) {
-      setPosts(res.data);
-    }
+    if (res.success) setPosts(res.data);
   };
 
-  // --- NEW: Toggle Follow Function ---
   const handleToggleFollow = async () => {
     if (isOwnProfile) return;
-
     if (isFollowing) {
-      // Unfollow Logic
       const res = await unfollowUser(currentUser.id, profileUser.accountid);
       if (res.success) {
         setIsFollowing(false);
         setStats((prev) => ({ ...prev, followers: prev.followers - 1 }));
-      } else {
-        Alert.alert("Error", "Could not unfollow");
       }
     } else {
-      // Follow Logic
       const res = await followUser(currentUser.id, profileUser.accountid);
       if (res.success) {
         setIsFollowing(true);
         setStats((prev) => ({ ...prev, followers: prev.followers + 1 }));
-      } else {
-        Alert.alert("Error", "Could not follow");
       }
     }
   };
 
   const onLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) {
-      Alert.alert("Sign out", "Error signing out!");
-    }
+    if (error) Alert.alert("Sign out", "Error signing out!");
   };
 
   const handleLogout = async () => {
     Alert.alert("Confirm", "Are you sure you want to log out?", [
-      {
-        text: "Cancel",
-        onPress: () => console.log("Cancel Pressed"),
-        style: "cancel",
-      },
-      {
-        text: "Logout",
-        onPress: () => onLogout(),
-        style: "destructive",
-      },
+      { text: "Cancel", style: "cancel" },
+      { text: "Logout", onPress: () => onLogout(), style: "destructive" },
     ]);
   };
 
-  if (loading) {
+  if (loading)
     return (
       <ScreenWrapper bg="white">
         <Loading />
       </ScreenWrapper>
     );
-  }
 
   return (
     <ScreenWrapper bg="white">
@@ -191,11 +175,12 @@ const Profile = () => {
             router={router}
             handleLogout={handleLogout}
             isOwnProfile={isOwnProfile}
-            // Pass new props to header
             isFollowing={isFollowing}
             onToggleFollow={handleToggleFollow}
             stats={stats}
             interests={interests}
+            currentMood={currentMood}
+            onOpenMoodModal={() => setMoodModalVisible(true)}
           />
         }
         ListHeaderComponentStyle={{ marginBottom: 30 }}
@@ -215,13 +200,16 @@ const Profile = () => {
           ) : null
         }
       />
+
+      <MoodInputModal
+        visible={moodModalVisible}
+        onClose={() => setMoodModalVisible(false)}
+        onSave={handleSaveMood}
+      />
     </ScreenWrapper>
   );
 };
 
-// ==========================================
-// USER HEADER COMPONENT
-// ==========================================
 const UserHeader = ({
   user,
   router,
@@ -231,13 +219,36 @@ const UserHeader = ({
   onToggleFollow,
   stats,
   interests,
+  currentMood,
+  onOpenMoodModal,
 }) => {
+  const openMoodHistory = () => {
+    router.push({
+      pathname: "moodHistory",
+      params: { userId: user?.accountid, userName: user?.username },
+    });
+  };
+
+  const getMoodConfig = (m) => {
+    const txt = m?.toLowerCase() || "";
+    if (txt.includes("happy") || txt.includes("good"))
+      return { icon: "smile", color: "#4CAF50", bg: "#E8F5E9" };
+    if (txt.includes("sad"))
+      return { icon: "frown", color: "#2196F3", bg: "#E3F2FD" };
+    if (txt.includes("anxious"))
+      return { icon: "activity", color: "#9C27B0", bg: "#F3E5F5" };
+    if (txt.includes("tired"))
+      return { icon: "battery", color: "#607D8B", bg: "#ECEFF1" };
+    return { icon: "meh", color: "#FF9800", bg: "#FFF3E0" };
+  };
+
+  const moodStyle = getMoodConfig(currentMood?.currentmood);
+
   return (
     <View
       style={{ flex: 1, backgroundColor: "white", paddingHorizontal: wp(4) }}
     >
       <Header title="Profile" showBackButton={true} marginBottom={30} />
-
       {isOwnProfile && (
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Icon name="logout" color={theme.colors.rose} />
@@ -246,7 +257,6 @@ const UserHeader = ({
 
       <View style={styles.container}>
         <View style={{ gap: 15 }}>
-          {/* Avatar & Edit Button */}
           <View style={styles.avatarContainer}>
             <Avatar
               uri={user?.profileImage || user?.profileimage}
@@ -263,7 +273,6 @@ const UserHeader = ({
             )}
           </View>
 
-          {/* Username and Address */}
           <View style={{ alignItems: "center", gap: 4 }}>
             <Text style={styles.userName}>{user && user.username}</Text>
             <Text style={styles.infoText}>
@@ -271,7 +280,8 @@ const UserHeader = ({
             </Text>
           </View>
 
-          {/* --- NEW: STATS ROW --- */}
+          {/* MOOD REMOVED FROM HERE */}
+
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{stats.followers}</Text>
@@ -284,33 +294,42 @@ const UserHeader = ({
             </View>
           </View>
 
-          {/* --- NEW: FOLLOW BUTTON (Only for others) --- */}
           {!isOwnProfile && (
-            <TouchableOpacity
-              style={[
-                styles.followButton,
-                isFollowing && styles.followingButton,
-              ]}
-              onPress={onToggleFollow}
-            >
-              <Text
+            <View style={styles.actionButtonsContainer}>
+              <TouchableOpacity
                 style={[
-                  styles.followButtonText,
-                  isFollowing && styles.followingButtonText,
+                  styles.actionButton,
+                  styles.followButtonBase,
+                  isFollowing && styles.followingButton,
                 ]}
+                onPress={onToggleFollow}
               >
-                {isFollowing ? "Unfollow" : "Follow"}
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.followButtonText,
+                    isFollowing && styles.followingButtonText,
+                  ]}
+                >
+                  {isFollowing ? "Unfollow" : "Follow"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, styles.moodButtonBase]}
+                onPress={openMoodHistory}
+              >
+                <Text style={[styles.followButtonText, styles.moodButtonText]}>
+                  Check Mood
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
 
-          {/* Contact Info & Bio */}
           <View style={{ gap: 10 }}>
             <View style={styles.info}>
               <Icon name="mail" size={20} color={theme.colors.textLight} />
               <Text style={styles.infoText}>{user && user.email}</Text>
             </View>
-
             {(user?.phoneNumber || user?.phonenumber) && (
               <View style={styles.info}>
                 <Icon name="call" size={20} color={theme.colors.textLight} />
@@ -319,29 +338,72 @@ const UserHeader = ({
                 </Text>
               </View>
             )}
-
             {user && user.bio && (
               <Text style={styles.infoText}>{user.bio}</Text>
             )}
 
-            {/* 🔥 NEW: Interests Section 🔥 */}
-          {interests.length > 0 && (
-             <View style={styles.interestsContainer}>
+            {interests.length > 0 && (
+              <View style={styles.interestsContainer}>
                 {interests.map((tag, index) => (
-                    <View key={index} style={styles.tag}>
-                        <Text style={styles.tagText}>{tag}</Text>
-                    </View>
+                  <View key={index} style={styles.tag}>
+                    <Text style={styles.tagText}>{tag}</Text>
+                  </View>
                 ))}
-             </View>
-          )}
+              </View>
+            )}
 
+            {/* 🔥 MOOD DISPLAY MOVED HERE (Below Interests) 🔥 */}
+            <TouchableOpacity
+              onPress={isOwnProfile ? onOpenMoodModal : openMoodHistory}
+              activeOpacity={0.8}
+              // Changed marginHorizontal to 0 so it fits the info column width
+              style={[
+                styles.moodCard,
+                {
+                  backgroundColor: moodStyle.bg,
+                  borderColor: moodStyle.color,
+                  marginHorizontal: 0,
+                },
+              ]}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+              >
+                <View
+                  style={[
+                    styles.moodIconCircle,
+                    { backgroundColor: moodStyle.color },
+                  ]}
+                >
+                  <Feather name={moodStyle.icon} size={18} color="white" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.moodLabel, { color: moodStyle.color }]}>
+                    {currentMood
+                      ? `Feeling ${currentMood.currentmood}`
+                      : "Set your mood"}
+                  </Text>
+                  {currentMood?.note && (
+                    <Text numberOfLines={1} style={styles.moodNote}>
+                      {currentMood.note}
+                    </Text>
+                  )}
+                </View>
+                {isOwnProfile && (
+                  <Feather
+                    name="plus-circle"
+                    size={20}
+                    color={moodStyle.color}
+                  />
+                )}
+              </View>
+            </TouchableOpacity>
+            {/* ------------------------------------- */}
           </View>
 
-          {/* Features Section: ONLY show if it is MY profile */}
           {isOwnProfile && (
             <View style={styles.menuSection}>
               <Text style={styles.menuTitle}>Features</Text>
-
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => router.push("editInterest")}
@@ -354,7 +416,6 @@ const UserHeader = ({
                 </View>
                 <Icon name="arrowRight" size={20} color="#C7C7CC" />
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => router.push("/requestHelp")}
@@ -364,13 +425,9 @@ const UserHeader = ({
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.menuText}>Request Help</Text>
-                  <Text style={styles.menuSubText}>
-                    Need someone to talk to?
-                  </Text>
                 </View>
                 <Icon name="arrowRight" size={20} color="#C7C7CC" />
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => router.push("/phApplication")}
@@ -380,13 +437,9 @@ const UserHeader = ({
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.menuText}>Peer Helper Application</Text>
-                  <Text style={styles.menuSubText}>
-                    Apply to be Peer Helper
-                  </Text>
                 </View>
                 <Icon name="arrowRight" size={20} color="#C7C7CC" />
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => router.push("counselor/myTask")}
@@ -396,13 +449,11 @@ const UserHeader = ({
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.menuText}>My Tasks</Text>
-                  <Text style={styles.menuSubText}>View assigned tasks</Text>
                 </View>
                 <Icon name="arrowRight" size={20} color="#C7C7CC" />
               </TouchableOpacity>
             </View>
           )}
-          {/* End Features Section */}
         </View>
       </View>
     </View>
@@ -410,12 +461,8 @@ const UserHeader = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  listStyle: {
-    paddingBottom: 20,
-  },
+  container: { flex: 1 },
+  listStyle: { paddingBottom: 20 },
   logoutButton: {
     position: "absolute",
     right: 0,
@@ -424,11 +471,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fee2e2",
     zIndex: 10,
   },
-  avatarContainer: {
-    height: hp(12),
-    width: hp(12),
-    alignSelf: "center",
-  },
+  avatarContainer: { height: hp(12), width: hp(12), alignSelf: "center" },
   editIcon: {
     position: "absolute",
     bottom: 0,
@@ -452,13 +495,8 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: theme.colors.textLight,
   },
-  info: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
+  info: { flexDirection: "row", alignItems: "center", gap: 10 },
 
-  // --- NEW STYLES ---
   statsRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -466,24 +504,62 @@ const styles = StyleSheet.create({
     gap: 20,
     marginVertical: 10,
   },
-  statItem: {
-    alignItems: "center",
-  },
+  statItem: { alignItems: "center" },
   statNumber: {
     fontSize: hp(2.2),
     fontWeight: "bold",
     color: theme.colors.textDark,
   },
-  statLabel: {
-    fontSize: hp(1.5),
-    color: theme.colors.textLight,
+  statLabel: { fontSize: hp(1.5), color: theme.colors.textLight },
+  statDivider: { height: 20, width: 1, backgroundColor: "#e5e5e5" },
+
+  actionButtonsContainer: {
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    marginTop: 5,
+    marginBottom: 10,
   },
-  statDivider: {
-    height: 20,
-    width: 1,
-    backgroundColor: "#e5e5e5",
+  actionButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  // 🔥 Interests Styles
+  followButtonBase: { backgroundColor: theme.colors.primary },
+  moodButtonBase: {
+    backgroundColor: "#f0f9ff",
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  followButtonText: { color: "white", fontWeight: "bold", fontSize: hp(1.8) },
+  followingButton: {
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  followingButtonText: { color: theme.colors.primary },
+  moodButtonText: { color: theme.colors.primary },
+
+  moodCard: {
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  moodIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  moodLabel: { fontSize: hp(1.8), fontWeight: "bold" },
+  moodNote: { fontSize: hp(1.5), color: theme.colors.textLight },
+
   interestsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -504,31 +580,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textDark,
     fontWeight: "500",
   },
-  followButton: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 10,
-    borderRadius: theme.radius.md,
-    alignItems: "center",
-    marginTop: 5,
-    marginBottom: 10,
-    marginHorizontal: 40,
-  },
-  followingButton: {
-    backgroundColor: "white",
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-  },
-  followButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: hp(2),
-  },
-  followingButtonText: {
-    color: theme.colors.primary,
-  },
-  // ----------------
 
-  // Menu / Features
   menuSection: {
     marginTop: 25,
     borderTopWidth: 1,
