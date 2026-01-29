@@ -401,3 +401,62 @@ export const getMoodHistory = async (userId) => {
     return { success: false, msg: error.message };
   }
 };
+// ==============================
+// Search & Explore
+// ==============================
+
+// 1. Search Users by Username
+export const searchUsers = async (query) => {
+  try {
+    if (!query) return { success: true, data: [] };
+
+    const { data, error } = await supabase
+      .from("account")
+      .select("accountid, username, profileimage")
+      .ilike("username", `%${query}%`) // Case-insensitive search
+      .limit(20);
+
+    if (error) return { success: false, msg: error.message };
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, msg: error.message };
+  }
+};
+
+// 2. Get Users by Specific Interest (e.g. "Music")
+export const getUsersByInterest = async (interestName) => {
+  try {
+    // A. Find the Interest ID first
+    const { data: interestData, error: iError } = await supabase
+      .from("interest")
+      .select("interestid")
+      .ilike("interestname", interestName)
+      .single();
+
+    if (iError || !interestData) return { success: true, data: [] };
+
+    // B. Find Users with this Interest ID
+    const { data: userInterests, error: uiError } = await supabase
+      .from("user_interest")
+      .select("userid")
+      .eq("interestid", interestData.interestid);
+
+    if (uiError) return { success: false, msg: uiError.message };
+
+    if (userInterests.length === 0) return { success: true, data: [] };
+
+    const userIds = userInterests.map((ui) => ui.userid);
+
+    // C. Fetch User Details
+    const { data: users, error: uError } = await supabase
+      .from("account")
+      .select("accountid, username, profileimage")
+      .in("accountid", userIds);
+
+    if (uError) return { success: false, msg: uError.message };
+
+    return { success: true, data: users };
+  } catch (error) {
+    return { success: false, msg: error.message };
+  }
+};
