@@ -40,7 +40,7 @@ const MoodInputModal = ({ visible, onClose, onSave }) => {
     <Modal transparent visible={visible} animationType="slide">
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <Text style={styles.title}>How are you feeling?</Text>
+          <Text style={styles.title}>How are you feeling today?</Text>
 
           {/* Emoji Grid */}
           <View style={styles.grid}>
