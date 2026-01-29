@@ -49,16 +49,16 @@ export default function CounselorDashboard() {
         .neq("helperstatus", "Pending")
         .gte("applicationapprovaldate", todayStr);
 
-      // 2. Student Requests
+      //User Requests
       const { count: reqPendingCount } = await supabase
         .from("help_request")
         .select("*", { count: "exact", head: true })
         .eq("status", "Pending");
-
+      //acive
       const { count: reqActiveCount } = await supabase
         .from("help_request")
         .select("*", { count: "exact", head: true })
-        .eq("status", "Assigned");
+        .in("status", ["Assigned", "In Progress"]);
 
       setStats({
         pendingApplications: appPendingCount || 0,
@@ -118,8 +118,8 @@ export default function CounselorDashboard() {
           </TouchableOpacity>
         </View>
 
-        {/* 🚨 section 1: Student Help Requests */}
-        <Text style={styles.sectionTitle}>Student Cases</Text>
+        {/*  Help Requests */}
+        <Text style={styles.sectionTitle}>User Cases</Text>
         <View style={styles.statsContainer}>
           {/* Pending Requests */}
           <TouchableOpacity
@@ -194,7 +194,7 @@ export default function CounselorDashboard() {
           <View style={styles.actionTextContainer}>
             <Text style={styles.actionTitle}>Review Applications</Text>
             <Text style={styles.actionDesc}>
-              Check student peer helper applications
+              Check user peer helper applications
             </Text>
           </View>
         </TouchableOpacity>

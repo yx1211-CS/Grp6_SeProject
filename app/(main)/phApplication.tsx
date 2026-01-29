@@ -3,16 +3,16 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
@@ -21,21 +21,26 @@ import { supabase } from "../../lib/supabase";
 export default function PeerHelperApplication() {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(false);
-  const [checking, setChecking] = useState(true);
-  const [existingStatus, setExistingStatus] = useState(null);
+  // Loading and State Management
+  const [loading, setLoading] = useState(false); // Controls form submission loading
+  const [checking, setChecking] = useState(true); // Controls initial status check loading
+  const [existingStatus, setExistingStatus] = useState(null); // Stores 'Pending' or 'Approved' status
 
-  // 表单数据
+  // Form Data States
   const [fullName, setFullName] = useState("");
   const [studentId, setStudentId] = useState("");
   const [reason, setReason] = useState("");
   const [experience, setExperience] = useState("");
   const [agreed, setAgreed] = useState(false);
 
+  // Check application status on component mount
   useEffect(() => {
     checkStatus();
   }, []);
 
+  /**
+   * Checks if the user is already a Peer Helper or has a pending application
+   */
   const checkStatus = async () => {
     try {
       const {
@@ -43,7 +48,8 @@ export default function PeerHelperApplication() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. 检查 Account 表里的 Role (确认你是用 accountid 还是 id)
+      // 1. Check current role in the Account table
+      // Ensure 'accountid' matches your specific schema (some use 'id')
       const { data: account } = await supabase
         .from("account")
         .select("role")
@@ -56,14 +62,14 @@ export default function PeerHelperApplication() {
         return;
       }
 
-      // 2. 检查是否有 'Pending' 的申请
-      // ⚠️ 这里的字段名必须跟你数据库一模一样
+      // 2. Check for any 'Pending' applications in helper_application table
+      // Verify that column names (userid, helperstatus) match your DB schema exactly
       const { data: application } = await supabase
         .from("helper_application")
         .select("helperstatus")
         .eq("userid", user.id)
         .eq("helperstatus", "Pending")
-        .maybeSingle();
+        .maybeSingle(); // Returns null instead of error if no row found
 
       if (application) {
         setExistingStatus("Pending");
@@ -75,12 +81,17 @@ export default function PeerHelperApplication() {
     }
   };
 
+  /**
+   * Handles form submission to the helper_application table
+   */
   const handleSubmit = async () => {
-    // 验证输入
+    // Basic Input Validation
     if (!fullName.trim() || !studentId.trim() || !reason.trim()) {
       Alert.alert("Missing Fields", "Please fill in all required fields.");
       return;
     }
+
+    // Ethics Agreement Validation
     if (!agreed) {
       Alert.alert(
         "Agreement Required",
@@ -94,16 +105,17 @@ export default function PeerHelperApplication() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not found");
+      if (!user) throw new Error("User session not found");
 
-      // ⚠️ 这里的字段名必须跟你数据库一模一样
+      // Insert data into helper_application table
+      // Ensure keys match your Supabase column names
       const { error } = await supabase.from("helper_application").insert({
-        userid: user.id, // 对应数据库的 userid
-        full_name: fullName, // 对应你刚加的 full_name
-        student_id: studentId, // 对应你刚加的 student_id
-        reason: reason, // 对应你刚加的 reason
-        experience: experience, // 对应你刚加的 experience
-        helperstatus: "Pending", // 对应数据库的 helperstatus
+        userid: user.id, // Foreign key to auth/account
+        full_name: fullName, // Applicant's legal name
+        student_id: studentId, // University Student ID
+        reason: reason, // Motivation for joining
+        experience: experience, // Relevant background info
+        helperstatus: "Pending", // Default status for new applications
       });
 
       if (error) throw error;
@@ -121,6 +133,7 @@ export default function PeerHelperApplication() {
     }
   };
 
+  // Initial loading screen while checking database status
   if (checking) {
     return (
       <ScreenWrapper bg="white">
@@ -133,7 +146,7 @@ export default function PeerHelperApplication() {
     );
   }
 
-  // 状态视图：已申请 (Pending)
+  // View for Pending Status
   if (existingStatus === "Pending") {
     return (
       <ScreenWrapper bg="white">
@@ -148,7 +161,8 @@ export default function PeerHelperApplication() {
           </View>
           <Text style={styles.statusTitle}>Application Pending</Text>
           <Text style={styles.statusDesc}>
-            You have already submitted an application. Please wait for review.
+            You have already submitted an application. Please wait for our team
+            to review it.
           </Text>
           <TouchableOpacity
             style={styles.outlineBtn}
@@ -161,7 +175,7 @@ export default function PeerHelperApplication() {
     );
   }
 
-  // 状态视图：已通过 (Approved)
+  // View for Approved Status
   if (existingStatus === "Approved") {
     return (
       <ScreenWrapper bg="white">
@@ -176,7 +190,7 @@ export default function PeerHelperApplication() {
           </View>
           <Text style={styles.statusTitle}>You are a Peer Helper!</Text>
           <Text style={styles.statusDesc}>
-            You are already a verified Peer Helper.
+            You are already a verified Peer Helper in our community.
           </Text>
           <TouchableOpacity
             style={styles.outlineBtn}
@@ -189,7 +203,7 @@ export default function PeerHelperApplication() {
     );
   }
 
-  // 正常表单视图
+  // Default Form View
   return (
     <ScreenWrapper bg="white">
       <StatusBar style="dark" />
@@ -198,6 +212,7 @@ export default function PeerHelperApplication() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 50 }}>
+          {/* Back Navigation Header */}
           <View style={styles.header}>
             <TouchableOpacity
               onPress={() => router.back()}
@@ -209,11 +224,13 @@ export default function PeerHelperApplication() {
           </View>
 
           <Text style={styles.subtitle}>
-            Join as a Peer Helper. Help us build a supportive and safe
-            community.
+            Join as a Peer Helper and help us build a supportive and safe
+            community for everyone.
           </Text>
 
+          {/* Form Fields Section */}
           <View style={styles.formContainer}>
+            {/* Full Name Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
                 Full Name <Text style={{ color: "red" }}>*</Text>
@@ -226,6 +243,7 @@ export default function PeerHelperApplication() {
               />
             </View>
 
+            {/* Student ID Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
                 Student ID <Text style={{ color: "red" }}>*</Text>
@@ -239,13 +257,14 @@ export default function PeerHelperApplication() {
               />
             </View>
 
+            {/* Motivation Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>
                 Why join? <Text style={{ color: "red" }}>*</Text>
               </Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                placeholder="Share your motivation..."
+                placeholder="Share your motivation for becoming a helper..."
                 value={reason}
                 onChangeText={setReason}
                 multiline
@@ -253,11 +272,12 @@ export default function PeerHelperApplication() {
               />
             </View>
 
+            {/* Experience Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Experience (Optional)</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                placeholder="Any volunteering experience?"
+                placeholder="List any relevant volunteering or helping experience..."
                 value={experience}
                 onChangeText={setExperience}
                 multiline
@@ -265,6 +285,7 @@ export default function PeerHelperApplication() {
               />
             </View>
 
+            {/* Code of Ethics Agreement */}
             <TouchableOpacity
               style={styles.checkboxContainer}
               onPress={() => setAgreed(!agreed)}
@@ -276,12 +297,12 @@ export default function PeerHelperApplication() {
               <Text style={styles.checkboxLabel}>
                 I agree to{" "}
                 <Text style={{ fontWeight: "bold" }}>
-                  abide by the Peer Helper Code of Ethics and rules.
+                  abide by the Peer Helper Code of Ethics and community rules.
                 </Text>
-                .
               </Text>
             </TouchableOpacity>
 
+            {/* Final Submit Button */}
             <TouchableOpacity
               style={[
                 styles.submitBtn,

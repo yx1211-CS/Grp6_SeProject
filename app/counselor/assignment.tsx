@@ -15,7 +15,9 @@ import {
 } from "react-native";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
+import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { createNotification } from "../../services/notificationService";
 
 export default function CounselorAssignment() {
   const router = useRouter();
@@ -24,16 +26,20 @@ export default function CounselorAssignment() {
   const [helpers, setHelpers] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  // 筛选状态 'all' | 'available' | 'busy'
+  // Helper status filters: 'all' | 'available' | 'busy'
   const [filterType, setFilterType] = useState("all");
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchData();
   }, []);
 
+  /**
+   * Orchestrates the initial data fetch for requests and helpers
+   */
   const fetchData = async () => {
     setLoading(true);
     await Promise.all([fetchRequests(), fetchHelpers()]);
@@ -46,6 +52,9 @@ export default function CounselorAssignment() {
     fetchData();
   };
 
+  /**
+   * Resolves the profile image source from Supabase storage or a direct URL
+   */
   const getAvatarSource = (path) => {
     if (!path) return null;
     if (path.startsWith("http")) return { uri: path };
@@ -53,6 +62,9 @@ export default function CounselorAssignment() {
     return { uri: data.publicUrl };
   };
 
+  /**
+   * Fetches help requests that are currently 'Pending'
+   */
   const fetchRequests = async () => {
     try {
       const { data, error } = await supabase
@@ -62,7 +74,9 @@ export default function CounselorAssignment() {
             *,
             student:help_request_student_id_fkey (
                 username, 
-                profileimage
+                profileimage, 
+                risk_level,
+                isflagged
             )
         `,
         )
@@ -76,6 +90,9 @@ export default function CounselorAssignment() {
     }
   };
 
+  /**
+   * Fetches all accounts with the 'PeerHelper' role and their task workload
+   */
   const fetchHelpers = async () => {
     try {
       const { data, error } = await supabase
@@ -87,12 +104,12 @@ export default function CounselorAssignment() {
                 full_name
             ),
             assigned_tasks:help_request!assigned_helper_id (
-                id
+                id,
+                status
             )
         `,
         )
         .eq("role", "PeerHelper")
-        .eq("assigned_tasks.status", "Assigned")
         .order("username", { ascending: true });
 
       if (error) throw error;
@@ -102,30 +119,49 @@ export default function CounselorAssignment() {
     }
   };
 
+  /**
+   * 🔥 Calculates the number of "Active Tasks" for a helper
+   * Only tasks with status 'Assigned' or 'In Progress' contribute to workload
+   */
+  const getActiveTaskCount = (helper) => {
+    if (!helper.assigned_tasks) return 0;
+
+    // Filter assigned tasks manually based on active status
+    return helper.assigned_tasks.filter(
+      (task) => task.status === "Assigned" || task.status === "In Progress",
+    ).length;
+  };
+
+  /**
+   * Opens the helper selection modal for a specific request
+   */
   const openAssignModal = (request) => {
     setSelectedRequest(request);
-    setFilterType("available"); // 默认只看 Available 的人
+    setFilterType("available"); // Default filter to available helpers for efficiency
     setModalVisible(true);
   };
 
-  // 👇👇👇 核心修改：严格禁止分配给 Busy Helper 👇👇👇
+  /**
+   * Validates if a helper can receive more tasks (Limit of 3 active tasks)
+   */
   const handleAssign = async (helper) => {
-    const taskCount = helper.assigned_tasks?.length || 0;
+    const taskCount = getActiveTaskCount(helper);
 
-    // 🚫 严格拦截
+    // Hard block: Prevent assignment if helper is at max capacity
     if (taskCount >= 3) {
       Alert.alert(
         "Helper Unavailable",
         `@${helper.username} is currently overwhelmed (${taskCount} active tasks). \nPlease select an 'Available' helper.`,
         [{ text: "OK" }],
       );
-      return; // 直接结束，不给分配机会
+      return;
     }
-
-    // 只有不忙的时候，才允许分配
     executeAssign(helper);
   };
 
+  /**
+   * Updates the database to assign the case and notifies the helper
+   */
   const executeAssign = async (helper) => {
     if (!selectedRequest) return;
     const studentName = selectedRequest.student?.username || "Student";
@@ -142,6 +178,7 @@ export default function CounselorAssignment() {
           text: "Assign",
           onPress: async () => {
             try {
+              // Update the request status and assign the helper ID
               const { error } = await supabase
                 .from("help_request")
                 .update({
@@ -152,9 +189,21 @@ export default function CounselorAssignment() {
 
               if (error) throw error;
 
+              // Send system notification to the assigned Peer Helper
+              await createNotification({
+                receiverid: helper.accountid,
+                senderid: user?.id,
+                title: "New Task Assigned",
+                data: JSON.stringify({
+                  type: "task_assigned",
+                  message: `You have been assigned a new case from student @${studentName}. Please check your task list.`,
+                  taskId: selectedRequest.id,
+                }),
+              });
+
               Alert.alert("Success", "Task assigned successfully!");
               setModalVisible(false);
-              fetchData();
+              fetchData(); // Refresh both lists to update counts and pending items
             } catch (err) {
               Alert.alert("Error", err.message);
             }
@@ -164,15 +213,21 @@ export default function CounselorAssignment() {
     );
   };
 
+  /**
+   * Filters the helper list based on workload (Busy vs Available)
+   */
   const getFilteredHelpers = () => {
     return helpers.filter((h) => {
-      const count = h.assigned_tasks?.length || 0;
+      const count = getActiveTaskCount(h);
       if (filterType === "busy") return count >= 3;
       if (filterType === "available") return count < 3;
       return true;
     });
   };
 
+  /**
+   * Renders each individual help request card
+   */
   const renderRequestItem = ({ item }) => {
     const student = item.student || {};
     const imagePath = student.profileimage;
@@ -224,13 +279,16 @@ export default function CounselorAssignment() {
     );
   };
 
+  /**
+   * Renders each helper card within the modal
+   */
   const renderHelperItem = ({ item }) => {
     const imagePath = item.profileimage || item.profileImage;
     const realName =
       (item.helper_application && item.helper_application[0]?.full_name) ||
       item.username;
 
-    const taskCount = item.assigned_tasks?.length || 0;
+    const taskCount = getActiveTaskCount(item);
     const isBusy = taskCount >= 3;
     const statusColor = isBusy ? "#F44336" : "#4CAF50";
     const statusText = isBusy ? "Busy" : "Available";
@@ -240,7 +298,7 @@ export default function CounselorAssignment() {
         style={[
           styles.helperCard,
           isBusy && { opacity: 0.6, backgroundColor: "#F5F5F5" },
-        ]} // 视觉上变灰
+        ]} // Visual indication for busy status (grey out)
         onPress={() => handleAssign(item)}
       >
         <View
@@ -291,7 +349,7 @@ export default function CounselorAssignment() {
           </View>
         </View>
 
-        {/* 如果 Busy，显示禁止图标；否则显示箭头 */}
+        {/* Show prohibited icon if busy, otherwise show assignment arrow */}
         {isBusy ? (
           <Feather name="slash" size={20} color="#ccc" />
         ) : (
@@ -349,7 +407,7 @@ export default function CounselorAssignment() {
             </TouchableOpacity>
           </View>
 
-          {/* Filter Tabs */}
+          {/* Workload Filter Tabs */}
           <View style={styles.filterContainer}>
             {["all", "available", "busy"].map((type) => (
               <TouchableOpacity

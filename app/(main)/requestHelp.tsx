@@ -1,15 +1,16 @@
+import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Keyboard,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 import Icon from "../../assets/icons";
 import ScreenWrapper from "../../components/ScreenWrapper";
@@ -26,12 +27,42 @@ export default function RequestHelp() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // State to determine if the current user is a student (User role)
+  const [isStudent, setIsStudent] = useState(false);
+
+  //Check user role on component mount or when user object changes
+  useEffect(() => {
+    if (user) {
+      checkUserRole();
+    }
+  }, [user]);
+
+  //Query the database to verify the user's role
+  const checkUserRole = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("account")
+        .select("role")
+        .eq("accountid", user.id)
+        .single();
+
+      // Only allow the 'History' button to show if the role is 'User'
+      if (data?.role === "User") {
+        setIsStudent(true);
+      }
+    } catch (e) {
+      console.log("Error checking role:", e);
+    }
+  };
+
   const handleSubmit = async () => {
+    // Basic validation to prevent empty submissions
     if (!title.trim() || !description.trim()) {
       Alert.alert("Request Help", "Please fill in all fields.");
       return;
     }
 
+    // Safety check to ensure a session exists
     if (!user) {
       Alert.alert("Error", "You must be logged in to request help.");
       return;
@@ -39,21 +70,28 @@ export default function RequestHelp() {
 
     setLoading(true);
     try {
-      // 插入数据到 help_request 表
+      // Insert the help request into Supabase
       const { error } = await supabase.from("help_request").insert({
-        student_id: user.id, // 当前用户ID
+        student_id: user.id,
         title: title.trim(),
         description: description.trim(),
-        status: "Pending", // 默认为待分配
+        status: "Pending", // Default status for new requests
       });
 
       if (error) throw error;
 
-      Alert.alert(
-        "Success",
-        "Your request has been submitted! A counselor will assign a helper to you soon.",
-        [{ text: "OK", onPress: () => router.back() }],
-      );
+      // Post-submission success handling: Offer navigation choices
+      Alert.alert("Success", "Your request has been submitted!", [
+        {
+          text: "View My Requests",
+          onPress: () => router.replace("/studentRequests"), // Redirect to the request list
+        },
+        {
+          text: "Later",
+          onPress: () => router.back(), // Return to the previous screen
+          style: "cancel",
+        },
+      ]);
     } catch (error) {
       Alert.alert("Error", error.message);
     } finally {
@@ -63,10 +101,12 @@ export default function RequestHelp() {
 
   return (
     <ScreenWrapper bg="white">
+      {/* Dismiss keyboard when tapping outside of inputs */}
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.container}>
-          {/* Header */}
+          {/* Header Section */}
           <View style={styles.header}>
+            {/* Left: Back Button */}
             <TouchableOpacity
               onPress={() => router.back()}
               style={styles.backButton}
@@ -78,7 +118,21 @@ export default function RequestHelp() {
                 color={theme.colors.text}
               />
             </TouchableOpacity>
+
             <Text style={styles.headerTitle}>Request Help</Text>
+
+            {/* Right: Conditional Rendering of History Button based on role */}
+            {isStudent ? (
+              <TouchableOpacity
+                onPress={() => router.push("/studentRequests")}
+                style={styles.historyBtn}
+              >
+                <Feather name="list" size={24} color={theme.colors.primary} />
+              </TouchableOpacity>
+            ) : (
+              // Invisible placeholder to keep the title centered via 'space-between'
+              <View style={{ width: 40 }} />
+            )}
           </View>
 
           <View style={styles.form}>
@@ -87,37 +141,37 @@ export default function RequestHelp() {
               Helpers are here to listen.
             </Text>
 
-            {/* Title Input */}
+            {/* Title Input Field */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Title</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Academic Stress, Relationship issues..."
+                placeholder="e.g. Academic Stress..."
                 placeholderTextColor={theme.colors.textLight}
                 value={title}
                 onChangeText={setTitle}
               />
             </View>
 
-            {/* Description Input */}
+            {/* Description Input Field (Multiline) */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Description</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                placeholder="Share a bit more about what you're going through..."
+                placeholder="Share what you're going through..."
                 placeholderTextColor={theme.colors.textLight}
                 value={description}
                 onChangeText={setDescription}
                 multiline
-                textAlignVertical="top"
+                textAlignVertical="top" // Ensure text starts at the top on Android
               />
             </View>
 
-            {/* Submit Button */}
+            {/* Submit Action Button */}
             <TouchableOpacity
               style={styles.submitBtn}
               onPress={handleSubmit}
-              disabled={loading}
+              disabled={loading} // Prevent double-submissions
             >
               {loading ? (
                 <ActivityIndicator size="small" color="white" />
@@ -140,19 +194,29 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    // Distribute space between back button, title, and history button/placeholder
+    justifyContent: "space-between",
     marginBottom: 20,
     marginTop: 10,
-    gap: 10,
   },
   backButton: {
     padding: 5,
     borderRadius: theme.radius.sm,
     backgroundColor: "rgba(0,0,0,0.05)",
+    width: 40,
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: hp(2.5),
     fontWeight: "bold",
     color: theme.colors.text,
+  },
+  historyBtn: {
+    padding: 5,
+    borderRadius: theme.radius.sm,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    width: 40,
+    alignItems: "center",
   },
   form: {
     gap: 20,

@@ -73,22 +73,21 @@ export default function UserFeedback() {
     setReplyMessage(item.admin_reply || "");
     setModalVisible(true);
   };
+
   const handleUpdate = async (newStatus) => {
     if (!selectedItem) return;
 
     try {
-      // 1. 🔥 先获取当前登录的用户 ID (Counselor 的 ID)
       const {
         data: { user },
       } = await supabase.auth.getUser();
       const currentUserId = user?.id;
 
       if (!currentUserId) {
-        Alert.alert("Error", "无法获取当前管理员信息，无法发送通知。");
+        Alert.alert("Error", "cant get counselor details");
         return;
       }
-
-      // 2. 更新 Feedback 表
+      //update feednack list
       const { error: feedbackError } = await supabase
         .from("feedback")
         .update({
@@ -100,11 +99,11 @@ export default function UserFeedback() {
 
       if (feedbackError) throw feedbackError;
 
-      // 3. 发送回复通知
+      // send repply message
       if (replyMessage.trim()) {
         const res = await createNotification({
           receiverid: selectedItem.userid,
-          senderid: currentUserId, // ✅ 这里传入真实的 UUID，不再是硬编码的字符串
+          senderid: currentUserId,
           title: "Feedback Reply 💬",
           data: JSON.stringify({
             type: "feedback_reply",
@@ -119,7 +118,7 @@ export default function UserFeedback() {
             `Feedback marked as ${newStatus} and user notified.`,
           );
         } else {
-          console.log("❌ Notification failed:", res.msg); // 现在应该不会报错了
+          console.log("❌ Notification failed:", res.msg);
           Alert.alert(
             "Partial Success",
             `Feedback updated, but notification failed: ${res.msg}`,

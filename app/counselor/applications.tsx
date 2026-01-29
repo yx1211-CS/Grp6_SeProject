@@ -3,16 +3,18 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import ScreenWrapper from "../../components/ScreenWrapper";
+import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { createNotification } from "../../services/notificationService";
 
 export default function CounselorApplications() {
   const router = useRouter();
@@ -20,6 +22,7 @@ export default function CounselorApplications() {
   const [apps, setApps] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchApplications();
@@ -49,6 +52,7 @@ export default function CounselorApplications() {
     fetchApplications();
   };
 
+  // Approve
   const handleApprove = (application) => {
     Alert.alert(
       "Confirm Approve",
@@ -60,7 +64,7 @@ export default function CounselorApplications() {
           onPress: async () => {
             setLoading(true);
             try {
-              // approve
+              // update（refresh)
               const { error: appError } = await supabase
                 .from("helper_application")
                 .update({
@@ -71,13 +75,26 @@ export default function CounselorApplications() {
 
               if (appError) throw appError;
 
-              // update role
+              //update user role
               const { error: userError } = await supabase
                 .from("account")
                 .update({ role: "PeerHelper" })
                 .eq("accountid", application.userid);
 
               if (userError) throw userError;
+
+              // send approve notification to user
+              await createNotification({
+                receiverid: application.userid, // applyer id
+                senderid: user?.id, // counselor id
+                title: "Application Approved! 🎉",
+                data: JSON.stringify({
+                  type: "peer_help_application", // meet notification
+                  status: "Approved",
+                  message: `Congratulations ${application.full_name}! Your application to become a Peer Helper has been approved. You now have access to helper features.`,
+                }),
+              });
+              // ---------------------------------------------------------
 
               Alert.alert("Success", "User is now a Peer Helper!");
               fetchApplications();
@@ -91,7 +108,7 @@ export default function CounselorApplications() {
     );
   };
 
-  //reject
+  //  Reject
   const handleReject = (application) => {
     Alert.alert("Reject Application", "Are you sure?", [
       { text: "Cancel", style: "cancel" },
@@ -101,12 +118,26 @@ export default function CounselorApplications() {
         onPress: async () => {
           setLoading(true);
           try {
+            //refresh
             const { error } = await supabase
               .from("helper_application")
               .update({ helperstatus: "Rejected" })
               .eq("applicationid", application.applicationid);
 
             if (error) throw error;
+
+            // reject notification
+            await createNotification({
+              receiverid: application.userid,
+              senderid: user?.id,
+              title: "Application Update",
+              data: JSON.stringify({
+                type: "peer_help_application",
+                status: "Rejected",
+                message: `Dear ${application.full_name}, thank you for your interest. Unfortunately, your application was not successful at this time.`,
+              }),
+            });
+            // ---------------------------------------------------------
 
             fetchApplications();
           } catch (error) {
@@ -131,7 +162,7 @@ export default function CounselorApplications() {
         activeOpacity={0.9}
         onPress={() => toggleExpand(item.applicationid)}
       >
-        {/* Header Section */}
+        {/* Header*/}
         <View style={styles.cardHeader}>
           <View style={styles.avatarPlaceholder}>
             <Text style={styles.avatarText}>
@@ -248,8 +279,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
   },
-
-  // Card Styles
   card: {
     backgroundColor: "white",
     borderRadius: 16,
@@ -288,8 +317,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "gray",
   },
-
-  // Expanded Details
   detailsContainer: {
     marginTop: 15,
     paddingTop: 15,
@@ -315,8 +342,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0f0f0",
     marginVertical: 15,
   },
-
-  // Actions
   actionRow: {
     flexDirection: "row",
     gap: 15,
@@ -343,8 +368,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 14,
   },
-
-  // Empty State
   emptyContainer: {
     alignItems: "center",
     marginTop: 50,

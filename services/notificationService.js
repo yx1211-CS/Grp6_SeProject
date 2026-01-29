@@ -53,7 +53,7 @@ const router = useRouter();
 
 // 🔥 核心修改：智能处理通知点击
 const handleNotificationPress = (item) => {
-  console.log("Clicked notification data:", item.data); // 调试用，看看数据长啥样
+  console.log("Clicked notification 11:", item.data); // 调试用，看看数据长啥样
 
   let data = {};
 

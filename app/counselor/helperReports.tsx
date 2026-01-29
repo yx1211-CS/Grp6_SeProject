@@ -2,30 +2,32 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    RefreshControl,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
+import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { createNotification } from "../../services/notificationService";
 
 export default function HelperReports() {
   const router = useRouter();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
+  const { user } = useAuth();
   // Modal State
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -84,7 +86,20 @@ export default function HelperReports() {
 
       if (error) throw error;
 
-      Alert.alert("Sent", "Command sent to Peer Helper.");
+      //send reply to user
+      await createNotification({
+        receiverid: selectedReport.helper_id,
+        senderid: user?.id,
+        title: "New message from counselor ",
+        data: JSON.stringify({
+          type: "report_reply",
+          message: counselorReply,
+          reportId: selectedReport.id,
+        }),
+      });
+      // ---------------------------------------------------------
+
+      Alert.alert("Sent", "Successful sent to peer helper already.");
       setSelectedReport({ ...selectedReport, counselor_reply: counselorReply });
     } catch (err) {
       Alert.alert("Error", err.message);
@@ -101,6 +116,18 @@ export default function HelperReports() {
 
       if (error) throw error;
 
+      //report feedback
+      await createNotification({
+        receiverid: selectedReport.helper_id,
+        senderid: user?.id,
+        title: "Report Reviewed",
+        data: JSON.stringify({
+          type: "report_reply",
+          message: "Your task report has been reviewed and closed. Good job!",
+          reportId: selectedReport.id,
+        }),
+      });
+      // ---------------------------------------------------------
       Alert.alert("Marked", "Report marked as High Priority.");
       setModalVisible(false);
       fetchReports();
