@@ -76,6 +76,7 @@ export default function RequestHelp() {
         title: title.trim(),
         description: description.trim(),
         status: "Pending", // Default status for new requests
+        has_feedback: false,
       });
 
       if (error) throw error;

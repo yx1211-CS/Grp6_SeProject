@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -22,6 +22,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { createNotification } from "../../services/notificationService";
 
+;
+
 export default function MyTasks() {
   const router = useRouter();
   const { user } = useAuth();
@@ -37,10 +39,12 @@ export default function MyTasks() {
   const [submitting, setSubmitting] = useState(false);
   const [riskModalVisible, setRiskModalVisible] = useState(false);
   const [targetStudentId, setTargetStudentId] = useState(null);
-
-  useEffect(() => {
-    if (user) fetchMyTasks();
-  }, [user, activeTab]);
+  // 2. 使用 useFocusEffect 确保每次页面回到前台都刷新数据
+  useFocusEffect(
+    useCallback(() => {
+      if (user) fetchMyTasks();
+    }, [user, activeTab]),
+  );
 
   const getAvatarSource = (path) => {
     if (!path) return null;
@@ -52,6 +56,21 @@ export default function MyTasks() {
   const fetchMyTasks = async () => {
     try {
       setLoading(true);
+
+      const { data: currentAccount, error: authError } = await supabase
+        .from("account")
+        .select("role")
+        .eq("accountid", user.id)
+        .single();
+
+      if (currentAccount?.role !== "PeerHelper") {
+        Alert.alert(
+          "Access Denied",
+          "Your Peer Helper status has been revoked.",
+        );
+        router.replace("/home");
+        return;
+      }
 
       let query = supabase
         .from("help_request")

@@ -1,20 +1,22 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Pressable,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 // Components & Config
+import { Feather } from "@expo/vector-icons";
 import Icon from "../../assets/icons";
 import Avatar from "../../components/Avatar";
 import Header from "../../components/Header";
 import Loading from "../../components/Loading";
+import MoodInputModal from "../../components/MoodInputModal";
 import PostCard from "../../components/PostCard";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
@@ -25,12 +27,14 @@ import { supabase } from "../../lib/supabase";
 // Services
 import { fetchPosts } from "../../services/postService";
 import {
-  followUser,
-  getFollowCounts,
-  getFollowStatus,
-  getUserData,
-  getUserInterests,
-  unfollowUser,
+    addMood,
+    followUser,
+    getFollowCounts,
+    getFollowStatus,
+    getLatestMood,
+    getUserData,
+    getUserInterests,
+    unfollowUser,
 } from "../../services/userService";
 
 const Profile = () => {
@@ -49,6 +53,10 @@ const Profile = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [stats, setStats] = useState({ followers: 0, following: 0 });
 
+  //mood states
+const [currentMood, setCurrentMood] = useState(null);
+  const [moodModalVisible, setMoodModalVisible] = useState(false);
+  
   // Logic: Is this my profile or someone else's?
   const isOwnProfile = !params?.userId || params?.userId == currentUser?.id;
 
@@ -89,7 +97,7 @@ const Profile = () => {
 
     // C. Fetch Interests (🔥 NEW)
     fetchInterests(targetUserId);
-
+    fetchCurrentMood(targetUserId);
     setLoading(false);
   };
 
@@ -97,6 +105,21 @@ const Profile = () => {
   const fetchInterests = async (targetId) => {
     let res = await getUserInterests(targetId);
     if (res.success) setInterests(res.data);
+  };
+
+   const fetchCurrentMood = async (targetId) => {
+    let res = await getLatestMood(targetId);
+    if (res.success) setCurrentMood(res.data);
+  };
+
+  const handleSaveMood = async (mood, note) => {
+    const res = await addMood(currentUser.id, mood, note);
+    if (res.success) {
+      setCurrentMood({ currentmood: mood, note: note });
+      Alert.alert("Success", "Mood updated!");
+    } else {
+      Alert.alert("Error", "Could not save mood");
+    }
   };
 
   const fetchFollowInfo = async (userId) => {
@@ -162,7 +185,6 @@ const Profile = () => {
     Alert.alert("Confirm", "Are you sure you want to log out?", [
       {
         text: "Cancel",
-        onPress: () => console.log("Cancel Pressed"),
         style: "cancel",
       },
       {
@@ -196,6 +218,8 @@ const Profile = () => {
             onToggleFollow={handleToggleFollow}
             stats={stats}
             interests={interests}
+            currentMood={currentMood} 
+            onOpenMoodModal={() => setMoodModalVisible(true)}
           />
         }
         ListHeaderComponentStyle={{ marginBottom: 30 }}
@@ -215,6 +239,13 @@ const Profile = () => {
           ) : null
         }
       />
+
+      <MoodInputModal
+        visible={moodModalVisible}
+        onClose={() => setMoodModalVisible(false)}
+        onSave={handleSaveMood}
+      />
+
     </ScreenWrapper>
   );
 };
@@ -231,7 +262,31 @@ const UserHeader = ({
   onToggleFollow,
   stats,
   interests,
+  currentMood,      
+  onOpenMoodModal,  
 }) => {
+      const openMoodHistory = () => {
+    router.push({
+      pathname: "moodHistory",
+      params: { userId: user?.accountid, userName: user?.username },
+    });
+  };
+
+  const getMoodConfig = (m) => {
+    const txt = m?.toLowerCase() || "";
+    if (txt.includes("happy") || txt.includes("good"))
+      return { icon: "smile", color: "#4CAF50", bg: "#E8F5E9" };
+    if (txt.includes("sad"))
+      return { icon: "frown", color: "#2196F3", bg: "#E3F2FD" };
+    if (txt.includes("anxious"))
+      return { icon: "activity", color: "#9C27B0", bg: "#F3E5F5" };
+    if (txt.includes("tired"))
+      return { icon: "battery", color: "#607D8B", bg: "#ECEFF1" };
+    return { icon: "meh", color: "#FF9800", bg: "#FFF3E0" };
+  };
+
+  const moodStyle = getMoodConfig(currentMood?.currentmood);
+
   return (
     <View
       style={{ flex: 1, backgroundColor: "white", paddingHorizontal: wp(4) }}
@@ -271,6 +326,7 @@ const UserHeader = ({
             </Text>
           </View>
 
+        {/* MOOD REMOVED FROM HERE */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{stats.followers}</Text>
@@ -283,20 +339,16 @@ const UserHeader = ({
             </View>
           </View>
 
-          {/* --- NEW: FOLLOW BUTTON (Only for others) --- */}
+          {/* --- FOLLOW & MOOD BUTTONS SECTION --- */}
           {!isOwnProfile && (
-            <TouchableOpacity
-              style={[
-                styles.followButton,
-                isFollowing && styles.followingButton,
-              ]}
-              onPress={onToggleFollow}
-            >
-              <Text
-                style={[
-                  styles.followButtonText,
-                  isFollowing && styles.followingButtonText,
+            <View style={styles.actionButtonsContainer}>
+              <TouchableOpacity
+               style={[
+                  styles.actionButton,
+                  styles.followButtonBase,
+                  isFollowing && styles.followingButton,
                 ]}
+                onPress={onToggleFollow}
               >
                 <Text
                   style={[
@@ -308,19 +360,14 @@ const UserHeader = ({
                 </Text>
               </TouchableOpacity>
 
-              {/* 🔥 UPDATED: Only show "Check Mood" if currentMood exists */}
-              {currentMood && (
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.moodButtonBase]}
-                  onPress={openMoodHistory}
-                >
-                  <Text
-                    style={[styles.followButtonText, styles.moodButtonText]}
-                  >
-                    Check Mood
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={[styles.actionButton, styles.moodButtonBase]}
+                onPress={openMoodHistory}
+              >
+                <Text style={[styles.followButtonText, styles.moodButtonText]}>
+                  Check Mood
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -355,60 +402,55 @@ const UserHeader = ({
               </View>
             )}
 
-            {/* Mood Display Logic: Show only if it's me OR if there is data */}
-            {(isOwnProfile || currentMood) && (
-              <TouchableOpacity
-                onPress={isOwnProfile ? onOpenMoodModal : openMoodHistory}
-                activeOpacity={0.8}
-                style={[
-                  styles.moodCard,
-                  {
-                    backgroundColor: moodStyle.bg,
-                    borderColor: moodStyle.color,
-                    marginHorizontal: 0,
-                  },
-                ]}
+              {/* 🔥 MOOD DISPLAY MOVED HERE (Below Interests) 🔥 */}
+            <TouchableOpacity
+              onPress={isOwnProfile ? onOpenMoodModal : openMoodHistory}
+              activeOpacity={0.8}
+              // Changed marginHorizontal to 0 so it fits the info column width
+              style={[
+                styles.moodCard,
+                {
+                  backgroundColor: moodStyle.bg,
+                  borderColor: moodStyle.color,
+                  marginHorizontal: 0,
+                },
+              ]}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
               >
                 <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 10,
-                  }}
+                  style={[
+                    styles.moodIconCircle,
+                    { backgroundColor: moodStyle.color },
+                  ]}
                 >
-                  <View
-                    style={[
-                      styles.moodIconCircle,
-                      { backgroundColor: moodStyle.color },
-                    ]}
-                  >
-                    <Feather name={moodStyle.icon} size={18} color="white" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[styles.moodLabel, { color: moodStyle.color }]}
-                    >
-                      {currentMood
-                        ? `Feeling ${currentMood.currentmood}`
-                        : "Set your mood"}
+                  <Feather name={moodStyle.icon} size={18} color="white" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.moodLabel, { color: moodStyle.color }]}>
+                    {currentMood
+                      ? `Feeling ${currentMood.currentmood}`
+                      : "Set your mood"}
+                  </Text>
+                  {currentMood?.note && (
+                    <Text numberOfLines={1} style={styles.moodNote}>
+                      {currentMood.note}
                     </Text>
-                    {currentMood?.note && (
-                      <Text numberOfLines={1} style={styles.moodNote}>
-                        {currentMood.note}
-                      </Text>
-                    )}
-                  </View>
-                  {isOwnProfile && (
-                    <Feather
-                      name="plus-circle"
-                      size={20}
-                      color={moodStyle.color}
-                    />
                   )}
                 </View>
-              </TouchableOpacity>
-            )}
+                {isOwnProfile && (
+                  <Feather
+                    name="plus-circle"
+                    size={20}
+                    color={moodStyle.color}
+                  />
+                )}
+              </View>
+            </TouchableOpacity>
+            {/* ------------------------------------- */}
           </View>
+
 
           {/* Features Section: ONLY show if it is MY profile */}
           {isOwnProfile && (
@@ -556,6 +598,55 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: "#e5e5e5",
   },
+
+   actionButtonsContainer: {
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    marginTop: 5,
+    marginBottom: 10,
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: theme.radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  followButtonBase: { backgroundColor: theme.colors.primary },
+  moodButtonBase: {
+    backgroundColor: "#f0f9ff",
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  followButtonText: { color: "white", fontWeight: "bold", fontSize: hp(1.8) },
+  followingButton: {
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  followingButtonText: { color: theme.colors.primary },
+  moodButtonText: { color: theme.colors.primary },
+
+  moodCard: {
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  moodIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  moodLabel: { fontSize: hp(1.8), fontWeight: "bold" },
+  moodNote: { fontSize: hp(1.5), color: theme.colors.textLight },
+
+  
   // 🔥 Interests Styles
   interestsContainer: {
     flexDirection: "row",

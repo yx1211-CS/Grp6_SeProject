@@ -48,12 +48,7 @@ const NotificationItem = ({ item, router }) => {
         Alert.alert(
           "Application Update",
           `Your application has been ${data.status}.`,
-          [
-            {
-              text: "View Details",
-              onPress: () => router.push("/peer-helper/application-status"),
-            },
-          ],
+          
         );
         break;
 

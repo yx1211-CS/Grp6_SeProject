@@ -2,12 +2,12 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
@@ -104,7 +104,7 @@ export default function RequestHistory() {
 
   //Renders each individual request card
   const renderItem = ({ item }) => {
-    const isStudent = userRole === "Student"; // Note: Compare with 'User' or 'PeerHelper' based on your DB values
+    const isStudent = userRole === "User"; 
     const isHelper = userRole === "PeerHelper";
 
     // Display Name Logic: Students see the Helper's name; Helpers see the Student's name
@@ -135,6 +135,24 @@ export default function RequestHistory() {
         </View>
 
         <View style={styles.actionRow}>
+          {/* ---feedback button--- */}
+          {isStudent && item.status === "Completed" && (
+            <TouchableOpacity
+              style={[styles.btn, { backgroundColor: theme.colors.primary }]}
+              onPress={() =>
+                router.push({
+                  pathname: "submitFeedback", 
+                  params: { 
+                    requestId: item.id, 
+                    helperId: item.assigned_helper_id 
+                  },
+                })
+              }
+            >
+              <Feather name="edit-3" size={16} color="white" />
+              <Text style={styles.btnText}>Give Feedback</Text>
+            </TouchableOpacity>
+          )}
           {/*  Helper acceptbutton*/}
           {showAccept && (
             <TouchableOpacity
