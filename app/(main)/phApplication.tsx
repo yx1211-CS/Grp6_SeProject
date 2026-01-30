@@ -24,7 +24,7 @@ export default function PeerHelperApplication() {
   // Loading and State Management
   const [loading, setLoading] = useState(false); // Controls form submission loading
   const [checking, setChecking] = useState(true); // Controls initial status check loading
-  const [existingStatus, setExistingStatus] = useState(null); // Stores 'Pending' or 'Approved' status
+  const [existingStatus, setExistingStatus] = useState<string | null>(null); // Stores 'Pending' or 'Approved' status
 
   // Form Data States
   const [fullName, setFullName] = useState("");
