@@ -17,12 +17,20 @@ import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
 import { hp, wp } from "../../helpers/common";
 import { supabase } from "../../lib/supabase";
+import { createNotification } from "../../services/notificationService";
 
 export default function ReportDetails() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { postId, content, accusedName, isHidden, reportCount, postImage } =
-    params;
+  const {
+    postId,
+    content,
+    accusedName,
+    accusedId,
+    isHidden,
+    reportCount,
+    postImage,
+  } = params;
   const isPostHidden = isHidden === "true";
 
   const [loading, setLoading] = useState(false);
@@ -87,6 +95,26 @@ export default function ReportDetails() {
               .update({ ishidden: true })
               .eq("postid", postId);
 
+            if (!reportError && !postError && accusedId) {
+              console.log("Creating Hide Notification for:", accusedId);
+              const {
+                data: { user },
+              } = await supabase.auth.getUser();
+              await createNotification({
+                receiverid: accusedId,
+                senderid: user?.id,
+                title: "System Alert",
+                data: JSON.stringify({
+                  type: "PostHidded",
+                  postId: postId,
+                  message:
+                    "Your post has been hidden due to community guidelines violation.",
+                }),
+              });
+            } else if (!accusedId) {
+              console.log("fail to send notificaiton: accusedId missing");
+            }
+
             setLoading(false);
 
             if (!reportError && !postError) {
@@ -117,6 +145,24 @@ export default function ReportDetails() {
       .from("post")
       .update({ ishidden: false })
       .eq("postid", postId);
+
+    if (!reportError && !postError && isPostHidden && accusedId) {
+      console.log("Creating Restore Notification for:", accusedId);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      await createNotification({
+        receiverid: accusedId,
+        senderid: user?.id,
+        title: "Notification",
+        data: JSON.stringify({
+          type: "Postvisible",
+          postId: postId,
+          message: "Your post has been reviewed and is visible again.",
+        }),
+        created_at: new Date(),
+      });
+    }
 
     setLoading(false);
 

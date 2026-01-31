@@ -66,7 +66,7 @@ export default function ModeratorDashboard() {
         `
         *,
         reporter:reporterid (username, email),
-        post:postid (postcontent, ishidden, postfile, author:userid (username, email))
+        post:postid (userid, postcontent, ishidden, postfile, author:userid (username, email))
       `,
       )
       .eq("reportstatus", "Pending");
@@ -232,6 +232,7 @@ export default function ModeratorDashboard() {
                   ? `${item.reportCount} Reporters`
                   : item.latestReporter,
               accusedName: accusedName,
+              accusedId: item.post?.userid,
               isHidden: item.post?.ishidden || isHighRisk ? "true" : "false",
               reportCount: item.reportCount,
             },

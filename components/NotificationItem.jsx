@@ -43,7 +43,7 @@ const NotificationItem = ({ item, router }) => {
         }
         break;
 
-      // - Peer Helper
+      // Peer Helper
       case "peer_help_application":
         Alert.alert(
           "Application Update",
@@ -68,6 +68,28 @@ const NotificationItem = ({ item, router }) => {
           [{ text: "OK" }],
         );
         break;
+        //report post hide
+      case "PostHidded":
+        Alert.alert(
+    item?.title || "System Alert",
+
+    data?.message || item?.body || "Your post has been hidden.",
+    [
+      { 
+        text: "OK", 
+        onPress: () => console.log("Alert closed") 
+      }
+    ]
+  );
+  break;
+      //restore post from hidden
+case "Postvisible":
+  Alert.alert(
+    "Post Restored",
+    data.message || "Your post is now visible to others.",
+    [{ text: "View Post", onPress: () => router.push({ pathname: "postDetails", params: { postId: data.postId } }) }]
+  );
+  break;
 
       // norma
       default:
