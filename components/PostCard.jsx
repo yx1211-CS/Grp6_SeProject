@@ -199,11 +199,6 @@ const PostCard = ({
     }
   };
 
-  const onShare = async () => {
-    let content = { message: stripHtmlTags(item?.postcontent) };
-    Share.share(content);
-  };
-
   const createdAt = moment(item?.postcreatedat).format("MMM D");
   const liked =
     likes.filter((r) => r.userid == currentUser?.accountid).length > 0;
@@ -279,11 +274,6 @@ const PostCard = ({
             <Icon name="comment" size={24} color={theme.colors.textLight} />
           </TouchableOpacity>
           <Text style={styles.count}>{item?.replies?.[0]?.count || 0}</Text>
-        </View>
-        <View style={styles.footerButton}>
-          <TouchableOpacity onPress={onShare}>
-            <Icon name="share" size={24} color={theme.colors.textLight} />
-          </TouchableOpacity>
         </View>
       </View>
 
