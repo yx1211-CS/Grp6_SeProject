@@ -25,10 +25,31 @@ export default function Reports() {
     fetchReports();
   }, []);
 
+  // ——————————————————————————————————————————————————————————————————
+  // 🟢 LOGGING FUNCTION
+  // ——————————————————————————————————————————————————————————————————
+  const createLog = async (actionType: string, description: string) => {
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // 1. Log to Terminal
+        console.log(`[ADMIN REPORT ACTION] ${actionType}: ${description}`);
+
+        // 2. Log to Database
+        await supabase.from('log').insert({
+            accountid: user.id,
+            actiontype: `${actionType}: ${description}`
+        });
+
+    } catch (error) {
+        console.log("Failed to create log:", error);
+    }
+  };
+
   const fetchReports = async () => {
     setLoading(true);
     
-    // Fetch reports, join 'account' (reporter) and 'post' (the content)
     const { data, error } = await supabase
       .from('reported_content')
       .select(`
@@ -36,7 +57,7 @@ export default function Reports() {
         reporter:reporterid ( username, email ),
         post:postid ( * )
       `)
-      .eq('reportstatus', 'Pending') // Only show pending reports
+      .eq('reportstatus', 'Pending') 
       .order('reporttime', { ascending: false });
 
     if (error) {
@@ -48,23 +69,32 @@ export default function Reports() {
     setLoading(false);
   };
 
-  // ACTION 1: Dismiss Report (Keep the post, ignore report)
+  // ——————————————————————————————————————————————————————————————————
+  // ACTION 1: DISMISS (With Log)
+  // ——————————————————————————————————————————————————————————————————
   const handleDismiss = async (reportId: string) => {
     const { error } = await supabase
       .from('reported_content')
       .update({ reportstatus: 'Dismissed' })
       .eq('reportedcontentid', reportId);
 
-    if (error) Alert.alert("Error", error.message);
-    else fetchReports();
+    if (error) {
+        Alert.alert("Error", error.message);
+    } else {
+        // ✅ LOG IT
+        await createLog("REPORT_DISMISSED", `Dismissed report ID ${reportId}`);
+        fetchReports();
+    }
   };
 
-  // ACTION 2: Delete Post (The nuclear option)
+  // ——————————————————————————————————————————————————————————————————
+  // ACTION 2: DELETE POST (With Log)
+  // ——————————————————————————————————————————————————————————————————
   const handleDeletePost = (reportId: string, postId: string) => {
     Alert.alert("Delete Post", "This will permanently remove the content.", [
       { text: "Cancel", style: "cancel" },
       { text: "Delete", style: "destructive", onPress: async () => {
-          // 1. Delete the post
+          // 1. Delete Post
           const { error: deleteError } = await supabase
             .from('post')
             .delete()
@@ -75,18 +105,23 @@ export default function Reports() {
             return;
           }
 
-          // 2. Mark report as Resolved
+          // 2. Mark Resolved
           await supabase
             .from('reported_content')
             .update({ reportstatus: 'Resolved' })
             .eq('reportedcontentid', reportId);
+
+          // ✅ LOG IT
+          await createLog("POST_REMOVED", `Deleted post ID ${postId} due to report`);
 
           fetchReports();
       }}
     ]);
   };
 
-  // ACTION 3: Ban Author (Ban the person who WROTE the post)
+  // ——————————————————————————————————————————————————————————————————
+  // ACTION 3: BAN AUTHOR (With Log)
+  // ——————————————————————————————————————————————————————————————————
   const handleBanUser = (reportId: string, authorId: string) => {
     if (!authorId) {
         Alert.alert("Error", "Could not find the post author's ID.");
@@ -96,7 +131,7 @@ export default function Reports() {
     Alert.alert("Ban User", "This will permanently ban the author of this post.", [
       { text: "Cancel", style: "cancel" },
       { text: "Ban Author", style: "destructive", onPress: async () => {
-          // 1. Ban the user in 'account' table
+          // 1. Ban User
           const { error: banError } = await supabase
             .from('account')
             .update({ accountstatus: 'Banned' })
@@ -107,11 +142,14 @@ export default function Reports() {
             return;
           }
 
-          // 2. Mark report as Resolved
+          // 2. Mark Resolved
           await supabase
             .from('reported_content')
             .update({ reportstatus: 'Resolved' })
             .eq('reportedcontentid', reportId);
+
+          // ✅ LOG IT
+          await createLog("USER_BANNED", `Banned author ID ${authorId} from report`);
 
           Alert.alert("Success", "User has been banned.");
           fetchReports();
@@ -144,14 +182,12 @@ export default function Reports() {
                 const post = item.post;
                 const reporter = item.reporter;
                 
-                // ——— UPDATED COLUMN NAMES HERE ———
                 const postContent = post?.postcontent || "No content available";
                 const authorId = post?.userid; 
-                // ————————————————————————————————
-
+                
                 return (
                 <View style={styles.card}>
-                    {/* Header: Who reported it */}
+                    {/* Header */}
                     <View style={styles.cardHeader}>
                         <View style={styles.reporterInfo}>
                             <Icon name="user" size={16} color="#666" />
@@ -167,7 +203,7 @@ export default function Reports() {
                         <Text style={styles.reasonText}>Reason: {item.reportreason}</Text>
                     </View>
                     
-                    {/* The Post Content */}
+                    {/* Content */}
                     <View style={styles.contentBox}>
                         <Text style={styles.contentLabel}>Post Content:</Text>
                         {post ? (

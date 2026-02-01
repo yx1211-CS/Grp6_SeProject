@@ -1,4 +1,4 @@
-import { Stack, useRouter,useSegments, useRootNavigationState } from "expo-router";
+import { Stack, useRouter, useSegments, useRootNavigationState } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { LogBox } from "react-native";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
@@ -27,66 +27,112 @@ const MainLayout = () => {
   const segments = useSegments();
   const [authInitialized, setAuthInitialized] = useState(false);
 
+  // ==========================================
+  // Effect 1: Auth Listener
+  // ==========================================
   useEffect(() => {
-
-   const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      // console.log("Auth State Changed:", _event);
-
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
         setAuth(session.user);
         await updateUserData(session.user, session.user.email);
       } else {
         setAuth(null);
       }
-      setAuthInitialized(true); // 标记初始化完成
+      setAuthInitialized(true); 
     });
 
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []); // 🔥 空数组：保证绝对不会重复运行，解决“刷新”问题
+  }, []); 
 
   // ==========================================
-  // 🔵 Effect 2: 专门负责页面跳转 (根据 user 和 segments 变化)
+  // Effect 2: Navigation & Security Logic
   // ==========================================
   useEffect(() => {
-    // 1. 如果导航没准备好，或者 Auth 还没初始化完，什么都不做
     if (!rootNavigationState?.key || !authInitialized) return;
 
-    // 2. 获取当前状态
-    const inAuthGroup = segments[0] === 'welcome' || segments[0] === 'login' || segments[0] === 'signUp';
-    const inInterestPage = segments.some(s => s === 'editInterest');
-    
-    // 3. 判断跳转逻辑
-    if (user) {
-      // === 用户已登录 ===
-      const isNewUser = user.user_metadata?.is_new_user;
+    // 🛑 SAFETY 1: If navigation is still loading (segments is empty), DO NOTHING.
+    // This prevents the "Glimpse and Kick" bug.
+    if (!segments || segments.length === 0) return;
 
-      if (isNewUser) {
-        // 新用户 -> 没在选兴趣页 -> 踢去选兴趣
-        if (!inInterestPage) {
-          router.replace({
-            pathname: "/(main)/editInterest",
-            params: { fromSignUp: "true" },
-          });
+    const checkSecurityAndNavigate = async () => {
+      // —————————————————————————————————————————————
+      // 1. CHECK MAINTENANCE STATUS
+      // —————————————————————————————————————————————
+      let isMaintenanceOn = false;
+      try {
+        const { data } = await supabase
+          .from('log')
+          .select('actiontype')
+          .like('actiontype', 'MAINTENANCE_%')
+          .order('logid', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (data?.actiontype === 'MAINTENANCE_ON') isMaintenanceOn = true;
+      } catch (err) {
+        isMaintenanceOn = false;
+      }
+
+      // —————————————————————————————————————————————
+      // 2. DEFINE LOCATIONS
+      // —————————————————————————————————————————————
+      const inAuthGroup = segments[0] === 'welcome' || segments[0] === 'login' || segments[0] === 'signUp';
+      const inInterestPage = segments.some(s => s === 'editInterest');
+      const inStaffPortal = segments[0] === 'admin' || segments[0] === 'moderator' || segments[0] === 'counselor';
+      const inMaintenancePage = segments[0] === 'maintenance'; 
+
+      // —————————————————————————————————————————————
+      // 3. ENFORCE MAINTENANCE MODE
+      // —————————————————————————————————————————————
+      if (isMaintenanceOn) {
+        
+        // 🔑 MASTER KEY: If you are an Admin, you are EXEMPT.
+        // We check specific role or if you are already inside the admin folder
+        const isAdminUser = user?.user_metadata?.role === 'Admin';
+        
+        if (isAdminUser || segments[0] === 'admin') {
+            return; // Allow access
         }
+
+        // 🔴 BLOCK EVERYONE ELSE
+        if (!inMaintenancePage) {
+           router.replace('/maintenance');
+        }
+        return; // Stop here, don't do normal checks
+      }
+
+      // —————————————————————————————————————————————
+      // 4. NORMAL NAVIGATION LOGIC
+      // —————————————————————————————————————————————
+      if (user) {
+        const isNewUser = user.user_metadata?.is_new_user;
+
+        if (isNewUser) {
+          if (!inInterestPage) {
+            // @ts-ignore
+            router.replace({
+              pathname: "/(main)/editInterest",
+              params: { fromSignUp: "true" },
+            });
+          }
+        } else {
+          if (inAuthGroup) {
+            router.replace("/(main)/home");
+          }
+        }
+
       } else {
-        // 老用户 -> 如果在欢迎/登录页 -> 踢回首页
-        // (在其他页面如 postDetails 不会触发这里，所以不会刷新)
-        if (inAuthGroup) {
-          router.replace("/(main)/home");
+        if (!inAuthGroup && !inStaffPortal) { 
+          router.replace("/welcome");
         }
       }
+    };
 
-    } else {
-      // === 用户没登录 ===
-      // 如果不在欢迎页组 -> 踢去 Welcome
-      if (!inAuthGroup) {
-        router.replace("/welcome");
-      }
-    }
+    checkSecurityAndNavigate();
 
-  }, [user, segments, rootNavigationState?.key, authInitialized]); // 🔥 这里监听变化，但处理很快，不会导致重绘
+  }, [user, segments, rootNavigationState?.key, authInitialized]);
 
 
   const updateUserData = async (user, email) => {
@@ -99,12 +145,17 @@ const MainLayout = () => {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {/* 1. 注册主页 */}
       <Stack.Screen name="(main)/home" options={{ headerShown: false }} />
-
-      {/* 2. 🔥 修正：注册 editInterest (注意是单数，且带路径) */}
       <Stack.Screen name="(main)/editInterest" options={{ headerShown: false }} />
       <Stack.Screen name="postDetails" options={{ presentation: 'modal' }} />
+      
+      {/* NOTE: Staff folders (admin/moderator/counselor) do not need explicit 
+         Stack.Screens here if they are folders. Expo finds them automatically.
+      */}
+
+      {/* Make sure you create this file! */}
+      <Stack.Screen name="maintenance" options={{ headerShown: false }} />
+
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="welcome" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />

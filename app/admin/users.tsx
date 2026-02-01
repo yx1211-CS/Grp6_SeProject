@@ -1,7 +1,7 @@
 import { 
   View, 
   Text, 
-  ScrollView, // <--- Added this missing import
+  ScrollView, 
   FlatList, 
   TouchableOpacity, 
   Alert, 
@@ -18,19 +18,17 @@ import { wp, hp } from '../../helpers/common';
 import { theme } from '../../constants/theme';
 import Icon from '../../assets/icons';
 
-// Define the available roles in your system
 const ROLES = ['User', 'Counselor', 'Moderator', 'Admin'];
 
-export default function ManageUsers() {
+// Renamed component to match filename 'users.tsx'
+export default function Users() {
   const router = useRouter();
   
-  // State for data and UI
   const [users, setUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('All'); 
 
-  // State for Role Editor Modal
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
 
@@ -38,7 +36,6 @@ export default function ManageUsers() {
     fetchUsers();
   }, []);
 
-  // Filter users whenever the tab or the main list changes
   useEffect(() => {
     if (activeTab === 'All') {
       setFilteredUsers(users);
@@ -61,13 +58,39 @@ export default function ManageUsers() {
     setLoading(false);
   };
 
-  // 1. OPEN EDITOR
+  // ——————————————————————————————————————————————————————————————————
+  // 🟢 LOGGING FUNCTION
+  // ——————————————————————————————————————————————————————————————————
+  const createLog = async (actionType: string, description: string) => {
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // 1. Log to Terminal (for you to see in VS Code)
+        console.log(`[ADMIN ACTION] ${actionType}: ${description}`);
+
+        // 2. Log to Database (for audit history)
+        await supabase.from('log').insert({
+            accountid: user.id,
+            actiontype: `${actionType}: ${description}`
+        });
+
+    } catch (error) {
+        console.log("Failed to create log:", error);
+    }
+  };
+
+  // ——————————————————————————————————————————————————————————————————
+  // OPEN EDITOR
+  // ——————————————————————————————————————————————————————————————————
   const openEditModal = (user: any) => {
     setSelectedUser(user);
     setEditModalVisible(true);
   };
 
-  // 2. SAVE NEW ROLE
+  // ——————————————————————————————————————————————————————————————————
+  // SAVE NEW ROLE (With Logs)
+  // ——————————————————————————————————————————————————————————————————
   const handleUpdateRole = async (newRole: string) => {
     if (!selectedUser) return;
 
@@ -83,16 +106,21 @@ export default function ManageUsers() {
           if (error) {
             Alert.alert("Error", error.message);
           } else {
+            // ✅ LOG IT
+            await createLog("ROLE_UPDATE", `Changed ${selectedUser.username} to ${newRole}`);
+            
             Alert.alert("Success", "User role updated.");
             setEditModalVisible(false);
-            fetchUsers(); // Refresh list
+            fetchUsers(); 
           }
           setLoading(false);
       }}
     ]);
   };
 
-  // 3. BAN / UNBAN LOGIC
+  // ——————————————————————————————————————————————————————————————————
+  // BAN / UNBAN (With Logs)
+  // ——————————————————————————————————————————————————————————————————
   const handleToggleStatus = (user: any) => {
     const isBanned = user.accountstatus === 'Banned';
     const newStatus = isBanned ? 'Active' : 'Banned';
@@ -109,8 +137,14 @@ export default function ManageUsers() {
               .update({ accountstatus: newStatus })
               .eq('accountid', user.accountid);
 
-            if (error) Alert.alert("Error", error.message);
-            else fetchUsers(); 
+            if (error) {
+                Alert.alert("Error", error.message);
+            } else {
+                // ✅ LOG IT
+                await createLog("USER_STATUS", `${actionName}ned user ${user.username}`);
+                
+                fetchUsers(); 
+            }
         } 
       }
     ]);
@@ -163,7 +197,7 @@ export default function ManageUsers() {
                   <View style={styles.nameRow}>
                     <Text style={styles.userName}>{item.username || "Unknown"}</Text>
                     
-                    {/* Role Badge (Clickable to Edit) */}
+                    {/* Role Badge */}
                     <TouchableOpacity onPress={() => openEditModal(item)} style={styles.roleBadge}>
                         <Text style={styles.roleText}>{item.role || "User"}</Text>
                         <Icon name="edit" size={12} color="white" style={{ marginLeft: 4 }} />
@@ -178,7 +212,7 @@ export default function ManageUsers() {
                   </Text>
                 </View>
                 
-                {/* Ban/Unban Button */}
+                {/* Ban Button */}
                 <TouchableOpacity 
                   onPress={() => handleToggleStatus(item)}
                   style={[styles.actionButton, { borderColor: isBanned ? '#34C759' : '#FF3B30' }]}
@@ -218,7 +252,7 @@ export default function ManageUsers() {
                                 selectedUser?.role === role && { color: theme.colors.primary, fontWeight: 'bold' }
                             ]}>{role}</Text>
                             
-                            {selectedUser?.role === role && <Icon name="check" size={20} color={theme.colors.primary} />}
+                            {selectedUser?.role === role && <Icon name="arrowLeft" size={20} color={theme.colors.primary} />}
                         </TouchableOpacity>
                     ))}
 
@@ -240,7 +274,6 @@ const styles = StyleSheet.create({
   title: { fontSize: hp(2.5), fontWeight: 'bold', color: theme.colors.text },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#999' },
   
-  // Tabs
   tabContainer: { height: 50, marginBottom: 10 },
   tab: { 
     paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, 
@@ -250,7 +283,6 @@ const styles = StyleSheet.create({
   tabText: { color: '#666', fontWeight: '600' },
   activeTabText: { color: 'white' },
 
-  // User Card
   userCard: { 
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: 'white', padding: 15, borderRadius: 12, marginBottom: 10,
@@ -275,7 +307,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center'
   },
 
-  // Modal Styles
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end',
   },

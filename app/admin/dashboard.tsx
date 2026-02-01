@@ -200,7 +200,7 @@ export default function AdminDashboard() {
                             ]}>
                                 {option}
                             </Text>
-                            {dateRange === option && <Icon name="check" size={20} color={theme.colors.primary} />}
+                            {dateRange === option && <Icon name="arrowLeft" size={20} color={theme.colors.primary} />}
                         </TouchableOpacity>
                     ))}
                 </View>
