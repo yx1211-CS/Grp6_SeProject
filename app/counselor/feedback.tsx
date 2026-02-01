@@ -262,14 +262,6 @@ export default function UserFeedback() {
                   <Feather name="archive" size={18} color="white" />
                   <Text style={styles.btnText}>Mark Reviewed</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: "#4CAF50" }]}
-                  onPress={() => handleUpdate("Resolved")}
-                >
-                  <Feather name="check" size={18} color="white" />
-                  <Text style={styles.btnText}>Mark Resolved</Text>
-                </TouchableOpacity>
               </View>
               <Text
                 style={{
@@ -279,7 +271,7 @@ export default function UserFeedback() {
                   fontSize: 12,
                 }}
               >
-                * Marking as Reviewed/Resolved will remove it from this list.
+                * Marking as Reviewed will remove it from this list.
               </Text>
             </ScrollView>
           </View>

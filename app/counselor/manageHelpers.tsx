@@ -2,35 +2,35 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    Keyboard,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    RefreshControl,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  RefreshControl,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 import ScreenWrapper from "../../components/ScreenWrapper";
-import { useAuth } from "../../contexts/AuthContext"; // 获取当前操作者信息用于Log
+import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 
 export default function ManageHelpers() {
   const router = useRouter();
-  const { user: currentUser } = useAuth(); // 当前Counselor
+  const { user: currentUser } = useAuth();
   const [helpers, setHelpers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // UC27: Revoke Modal State
+  // Revoke Modal State
   const [revokeModalVisible, setRevokeModalVisible] = useState(false);
   const [selectedHelper, setSelectedHelper] = useState(null);
   const [revokeReason, setRevokeReason] = useState("");
@@ -49,7 +49,6 @@ export default function ManageHelpers() {
 
   const fetchHelpers = async () => {
     try {
-      // 联表查询：获取个人信息 + 申请表里的真实姓名
       const { data, error } = await supabase
         .from("account")
         .select(
@@ -81,14 +80,12 @@ export default function ManageHelpers() {
     fetchHelpers();
   };
 
-  // 🟢 1. 打开撤销弹窗
   const openRevokeModal = (helper) => {
     setSelectedHelper(helper);
-    setRevokeReason(""); // 清空理由
+    setRevokeReason("");
     setRevokeModalVisible(true);
   };
 
-  // 🔴 2. 执行撤销逻辑 (符合 UC27)
   const executeRevoke = async () => {
     if (!revokeReason.trim()) {
       Alert.alert("Required", "Please enter a reason for revocation.");
@@ -97,7 +94,6 @@ export default function ManageHelpers() {
 
     setProcessing(true);
     try {
-      // Step A: 把 Role 改回 User
       const { error: roleError } = await supabase
         .from("account")
         .update({ role: "User" })
@@ -105,8 +101,6 @@ export default function ManageHelpers() {
 
       if (roleError) throw roleError;
 
-      // Step B: 终止该 Helper 手头的所有任务 (重置为 Pending，且 assigned_helper_id 设为 null)
-      // 这样其他 Helper 可以在 Assignment 页面重新认领这些任务
       const { error: taskError } = await supabase
         .from("help_request")
         .update({
@@ -114,21 +108,21 @@ export default function ManageHelpers() {
           assigned_helper_id: null,
         })
         .eq("assigned_helper_id", selectedHelper.accountid)
-        .eq("status", "Assigned"); // 只处理进行中的
+        .in("status", ["In Progress", "Assigned"]);
 
       if (taskError) throw taskError;
 
-      // Step C: (可选) 记录 Log
+      // Log
       await supabase.from("log").insert({
-        accountid: currentUser?.id, // 操作者ID
+        accountid: currentUser?.id,
         actiontype: `Revoked Peer Helper: @${selectedHelper.username}`,
-        actiondesc: `Reason: ${revokeReason}`, // 记录理由
+        actiondesc: `Reason: ${revokeReason}`,
         actiontime: new Date().toISOString(),
       });
 
       Alert.alert("Success", "Status revoked and active tasks terminated.");
       setRevokeModalVisible(false);
-      fetchHelpers(); // 刷新列表
+      fetchHelpers();
     } catch (error) {
       Alert.alert("Error", error.message);
     } finally {
@@ -232,7 +226,7 @@ export default function ManageHelpers() {
 
           <TouchableOpacity
             style={[styles.actionBtn, styles.revokeBtn]}
-            onPress={() => openRevokeModal(item)} // 改为打开 Modal
+            onPress={() => openRevokeModal(item)}
           >
             <Feather name="trash-2" size={16} color="#C62828" />
             <Text style={styles.revokeText}>Revoke</Text>
@@ -272,7 +266,7 @@ export default function ManageHelpers() {
         }
       />
 
-      {/* 👇 Revoke Reason Modal (符合 UC27) 👇 */}
+      {/*  Revoke Reason Modal */}
       <Modal
         visible={revokeModalVisible}
         transparent={true}
@@ -472,7 +466,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: "#D32F2F", // 红色警告色
+    backgroundColor: "#D32F2F",
     alignItems: "center",
   },
   confirmRevokeText: { fontWeight: "bold", color: "white" },
