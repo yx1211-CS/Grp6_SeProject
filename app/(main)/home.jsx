@@ -90,7 +90,7 @@ const Home = () => {
   useEffect(() => {
     if (!user) return;
 
-    console.log("🔥 Current User ID for Subscription:", user.id);
+    //console.log("🔥 Current User ID for Subscription:", user.id);
 
     const postChannel = supabase
       .channel("posts")

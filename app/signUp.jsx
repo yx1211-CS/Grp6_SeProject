@@ -34,7 +34,8 @@ const SignUp = () => {
         password: password,
         options: {
           data: {
-            username: name, 
+            username: name,
+            is_new_user: true, 
           },
         },
       });
@@ -44,14 +45,10 @@ const SignUp = () => {
       if (error) {
         Alert.alert("Sign Up Error", error.message);
       } else {
-        // 注册成功！通常 Supabase 会自动登录并更新 Session
-        // 如果你是只开通了邮箱验证，可能需要提示用户去查收邮件
-        // 但在教程里，默认是直接登录成功的
-        // 可以在这里打印一下 data 看看
         console.log("Session created:", session);
-        // 这里的跳转逻辑通常由 AuthContext 自动监听处理，不需要手动 router.push
       }
     };
+
     
 
    return (
