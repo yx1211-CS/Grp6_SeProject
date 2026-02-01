@@ -227,9 +227,9 @@ const styles = StyleSheet.create({
   },
   // *********** staff login css ***
   staffTriggerContainer: {
-    marginTop: 20,
+    marginTop: 10,
     alignItems: "center",
-    paddingBottom: 50,
+    paddingBottom: 70,
   },
   staffTriggerText: {
     fontSize: hp(1.6),

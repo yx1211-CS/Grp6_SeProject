@@ -25,6 +25,8 @@ import ThreeDotsCircle from "./ThreeDotsCircle";
 import ThreeDotsHorizontal from "./ThreeDotsHorizontal";
 import User from "./User";
 import Video from "./Video";
+import ExclamationCircle from './ExclamationCircle';
+import Sync from './Sync';
 
 const icons = {
   home: Home,
@@ -51,6 +53,8 @@ const icons = {
   image: Image,
   video: Video,
   shield: Shield,
+  "exclamation-circle": ExclamationCircle,
+  sync: Sync,
 };
 
 const Icon = ({ name, ...props }) => {
