@@ -180,7 +180,6 @@ export default function CounselorDashboard() {
           </View>
         </View>
 
-        {/* 👇👇👇 MENU: 这里的图标改回了 Emoji 👇👇👇 */}
         <Text style={styles.sectionTitle}>Menu</Text>
 
         {/* 2. Review Applications */}
@@ -192,7 +191,7 @@ export default function CounselorDashboard() {
             <Text style={styles.icon}>📋</Text>
           </View>
           <View style={styles.actionTextContainer}>
-            <Text style={styles.actionTitle}>Review Applications</Text>
+            <Text style={styles.actionTitle}>Applications Review</Text>
             <Text style={styles.actionDesc}>
               Check user peer helper applications
             </Text>
