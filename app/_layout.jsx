@@ -50,9 +50,9 @@ const MainLayout = () => {
             });
           }
         } else {
-          const inMainGroup = segments[0] === '(main)';
+          const inAuthGroup = segments[0] === 'welcome' || segments[0] === 'login' || segments[0] === 'signUp';
           
-          if (!inMainGroup) {
+          if (inAuthGroup) {
             router.replace("/(main)/home");
           }
         }
@@ -83,6 +83,10 @@ const MainLayout = () => {
 
       {/* 2. 🔥 修正：注册 editInterest (注意是单数，且带路径) */}
       <Stack.Screen name="(main)/editInterest" options={{ headerShown: false }} />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="welcome" options={{ headerShown: false }} />
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="signUp" options={{ headerShown: false }} />
     </Stack>
   );
 };
