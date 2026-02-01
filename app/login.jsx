@@ -113,8 +113,6 @@ const Login = () => {
             onChangeText={(value) => (passwordRef.current = value)}
           />
 
-          <Text style={styles.forgotPassword}>Forgot Password?</Text>
-
           {/* Button */}
           <Button title={"Login"} loading={loading} onPress={onSubmit} />
         </View>
