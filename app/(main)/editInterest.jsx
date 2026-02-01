@@ -8,10 +8,12 @@ import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useRouter } from 'expo-router'
 import Icon from '../../assets/icons'
+import { useLocalSearchParams } from 'expo-router'
 
 const EditInterests = () => {
     const { user } = useAuth();
     const router = useRouter();
+    const { fromSignUp } = useLocalSearchParams();
     const [allInterests, setAllInterests] = useState([]);
     const [selectedIds, setSelectedIds] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -72,8 +74,15 @@ const EditInterests = () => {
                 if(insertError) throw insertError;
             }
 
-            Alert.alert("Success", "Interests updated!");
-            router.back();
+            if (fromSignUp) {
+                await supabase.auth.updateUser({ 
+                    data: { is_new_user: false } 
+                });
+                router.replace('/(main)/home');
+            } else {
+                Alert.alert("Success", "Interests updated!");
+                router.back();
+            }
 
         } catch (error) {
             Alert.alert("Error", error.message);
@@ -87,9 +96,13 @@ const EditInterests = () => {
             <View style={styles.container}>
                 {/* Header */}
                 <View style={styles.header}>
+                    {!fromSignUp ? (
                     <TouchableOpacity onPress={()=> router.back()}>
                         <Icon name="arrowLeft" size={hp(3.2)} color={theme.colors.text} />
                     </TouchableOpacity>
+                    ) : (
+                        <View style={{width: hp(3.2)}} />
+                    )}
                     <Text style={styles.title}>Edit Interests</Text>
                     <TouchableOpacity onPress={handleSave} disabled={loading}>
                         <Text style={[styles.saveText, loading && {color: theme.colors.textLight}]}>

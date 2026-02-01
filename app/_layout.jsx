@@ -35,14 +35,38 @@ const MainLayout = () => {
       if (session) {
         setAuth(session.user);
         updateUserData(session.user, session.user.email);
-        router.replace("/home");
+
+        const isNewUser = session.user.user_metadata?.is_new_user;
+
+        const inInterestPage = segments.some(s => s === 'editInterest');
+        const inHomePage = segments.some(s => s === 'home');
+
+        if (isNewUser) {
+          // 如果是新用户，且还没在兴趣页，就跳转
+          if (!inInterestPage) {
+            router.replace({
+              pathname: "/(main)/editInterest",
+              params: { fromSignUp: "true" },
+            });
+          }
+        } else {
+          const inMainGroup = segments[0] === '(main)';
+          
+          if (!inMainGroup) {
+            router.replace("/(main)/home");
+          }
+        }
+        
       } else {
         setAuth(null);
-        router.replace("/welcome");
+        const inAuthGroup = segments[0] === 'welcome' || segments[0] === 'login' || segments[0] === 'signUp';
+        if (!inAuthGroup) {
+            router.replace("/welcome");
+        }
       }
     });
 
-  }, [rootNavigationState?.key]);
+  }, [rootNavigationState?.key, segments]);
 
   const updateUserData = async (user, email) => {
     let res = await getUserData(user.id);
@@ -54,7 +78,11 @@ const MainLayout = () => {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      {/* 1. 注册主页 */}
       <Stack.Screen name="(main)/home" options={{ headerShown: false }} />
+
+      {/* 2. 🔥 修正：注册 editInterest (注意是单数，且带路径) */}
+      <Stack.Screen name="(main)/editInterest" options={{ headerShown: false }} />
     </Stack>
   );
 };

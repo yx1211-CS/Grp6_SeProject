@@ -34,7 +34,8 @@ const SignUp = () => {
         password: password,
         options: {
           data: {
-            username: name, 
+            username: name,
+            is_new_user: true, 
           },
         },
       });
@@ -47,6 +48,7 @@ const SignUp = () => {
         console.log("Session created:", session);
       }
     };
+
     
 
    return (
