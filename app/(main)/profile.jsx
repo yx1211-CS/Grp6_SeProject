@@ -271,6 +271,16 @@ const UserHeader = ({
       params: { userId: user?.accountid, userName: user?.username },
     });
   };
+  
+  const openFollowList = (type) => {
+    router.push({
+        pathname: '(main)/followList',
+        params: { 
+            userId: user?.accountid, 
+            type: type // 传进去是 'followers' 还是 'following'
+        }
+    });
+  }
 
   const getMoodConfig = (m) => {
     const txt = m?.toLowerCase() || "";
@@ -328,15 +338,25 @@ const UserHeader = ({
 
         {/* MOOD REMOVED FROM HERE */}
           <View style={styles.statsRow}>
-            <View style={styles.statItem}>
+
+            {/* Followers */}
+            <TouchableOpacity 
+                style={styles.statItem} 
+                onPress={() => openFollowList('followers')}
+            >
               <Text style={styles.statNumber}>{stats.followers}</Text>
               <Text style={styles.statLabel}>Followers</Text>
-            </View>
+            </TouchableOpacity>
+
             <View style={styles.statDivider} />
-            <View style={styles.statItem}>
+            {/* Following */}
+            <TouchableOpacity 
+                style={styles.statItem} 
+                onPress={() => openFollowList('following')}
+            >
               <Text style={styles.statNumber}>{stats.following}</Text>
               <Text style={styles.statLabel}>Following</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* --- FOLLOW SECTION --- */}
