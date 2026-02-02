@@ -75,10 +75,10 @@ const EditInterests = () => {
             }
 
             if (fromSignUp) {
-                await supabase.auth.updateUser({ 
+                router.replace('/(main)/home');
+                supabase.auth.updateUser({ 
                     data: { is_new_user: false } 
                 });
-                router.replace('/(main)/home');
             } else {
                 Alert.alert("Success", "Interests updated!");
                 router.back();

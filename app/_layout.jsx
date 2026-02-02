@@ -22,19 +22,23 @@ const _layout = () => {
 const MainLayout = () => {
   const { user, setAuth, setUserData } = useAuth();
   const router = useRouter();
-
-  const rootNavigationState = useRootNavigationState();
   const segments = useSegments();
+  const rootNavigationState = useRootNavigationState();
+  
   const [authInitialized, setAuthInitialized] = useState(false);
+  const [isMaintenanceOn, setIsMaintenanceOn] = useState(false); // 🔥 新增状态：存维护模式
 
   // ==========================================
-  // Effect 1: Auth Listener
+  // Effect 1: Auth Listener & Maintenance Check
   // ==========================================
   useEffect(() => {
+    // 1. 启动时检查一次维护模式 (避免每次跳转都查数据库，太卡了)
+    checkMaintenanceStatus();
+
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
         setAuth(session.user);
-        await updateUserData(session.user, session.user.email);
+        updateUserData(session.user, session.user.email);
       } else {
         setAuth(null);
       }
@@ -46,94 +50,87 @@ const MainLayout = () => {
     };
   }, []); 
 
+  // 辅助函数：查维护状态
+  const checkMaintenanceStatus = async () => {
+    try {
+      const { data } = await supabase
+        .from('log')
+        .select('actiontype')
+        .like('actiontype', 'MAINTENANCE_%')
+        .order('logid', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (data?.actiontype === 'MAINTENANCE_ON') {
+        setIsMaintenanceOn(true);
+      } else {
+        setIsMaintenanceOn(false);
+      }
+    } catch (err) {
+      console.log("Maintenance check error:", err);
+    }
+  }
+
   // ==========================================
-  // Effect 2: Navigation & Security Logic
+  // Effect 2: Navigation Logic (Cleaned Up)
   // ==========================================
   useEffect(() => {
     if (!rootNavigationState?.key || !authInitialized) return;
 
-    // 🛑 SAFETY 1: If navigation is still loading (segments is empty), DO NOTHING.
-    // This prevents the "Glimpse and Kick" bug.
-    if (!segments || segments.length === 0) return;
-
-    const checkSecurityAndNavigate = async () => {
-      // —————————————————————————————————————————————
-      // 1. CHECK MAINTENANCE STATUS
-      // —————————————————————————————————————————————
-      let isMaintenanceOn = false;
-      try {
-        const { data } = await supabase
-          .from('log')
-          .select('actiontype')
-          .like('actiontype', 'MAINTENANCE_%')
-          .order('logid', { ascending: false })
-          .limit(1)
-          .single();
-        
-        if (data?.actiontype === 'MAINTENANCE_ON') isMaintenanceOn = true;
-      } catch (err) {
-        isMaintenanceOn = false;
-      }
-
-      // —————————————————————————————————————————————
-      // 2. DEFINE LOCATIONS
-      // —————————————————————————————————————————————
-      const inAuthGroup = segments[0] === 'welcome' || segments[0] === 'login' || segments[0] === 'signUp';
-      const inInterestPage = segments.some(s => s === 'editInterest');
-      const inStaffPortal = segments[0] === 'admin' || segments[0] === 'moderator' || segments[0] === 'counselor';
-      const inMaintenancePage = segments[0] === 'maintenance'; 
-
-      // —————————————————————————————————————————————
-      // 3. ENFORCE MAINTENANCE MODE
-      // —————————————————————————————————————————————
-      if (isMaintenanceOn) {
-        
-        // 🔑 MASTER KEY: If you are an Admin, you are EXEMPT.
-        // We check specific role or if you are already inside the admin folder
+    // —————————————————————————————————————————————
+    // 1. 维护模式逻辑 (Maintenance Mode)
+    // —————————————————————————————————————————————
+    if (isMaintenanceOn) {
+        // 只有 Admin 能过
         const isAdminUser = user?.user_metadata?.role === 'Admin';
         
-        if (isAdminUser || segments[0] === 'admin') {
-            return; // Allow access
+        // 如果不是 Admin，且不在维护页，也不是在尝试登录 Admin，就踢去维护页
+        if (!isAdminUser && segments[0] !== 'admin' && segments[0] !== 'maintenance') {
+             router.replace('/maintenance');
+             return; 
         }
+    }
 
-        // 🔴 BLOCK EVERYONE ELSE
-        if (!inMaintenancePage) {
-           router.replace('/maintenance');
-        }
-        return; // Stop here, don't do normal checks
-      }
-
-      // —————————————————————————————————————————————
-      // 4. NORMAL NAVIGATION LOGIC
-      // —————————————————————————————————————————————
-      if (user) {
+    // —————————————————————————————————————————————
+    // 2. 正常用户逻辑 (Normal User Flow)
+    // —————————————————————————————————————————————
+    const inAuthGroup = segments[0] === 'welcome' || segments[0] === 'login' || segments[0] === 'signUp';
+    const inInterestPage = segments.some(s => s === 'editInterest');
+    
+    if (user) {
         const isNewUser = user.user_metadata?.is_new_user;
 
         if (isNewUser) {
-          if (!inInterestPage) {
-            // @ts-ignore
-            router.replace({
-              pathname: "/(main)/editInterest",
-              params: { fromSignUp: "true" },
-            });
-          }
+            // 新用户 -> 强制去选兴趣
+            // 加上 try-catch 防止路由还没准备好报错
+            if (!inInterestPage) {
+                try {
+                    router.replace({
+                        pathname: "/(main)/editInterest",
+                        params: { fromSignUp: "true" },
+                    });
+                } catch (e) {}
+            }
         } else {
-          if (inAuthGroup) {
-            router.replace("/(main)/home");
-          }
+            // 老用户 -> 如果卡在欢迎页，踢回首页
+            if (inAuthGroup) {
+                router.replace("/(main)/home");
+            }
         }
+    } else {
+        // 没登录 -> 踢回 Welcome
+        // (但也允许访问 admin/maintenance 页面)
+        const inStaffPortal = segments[0] === 'admin' || segments[0] === 'moderator' || segments[0] === 'counselor';
+        const inMaintenancePage = segments[0] === 'maintenance';
 
-      } else {
-        if (!inAuthGroup && !inStaffPortal) { 
-          router.replace("/welcome");
+        if (!inAuthGroup && !inStaffPortal && !inMaintenancePage) {
+            router.replace("/welcome");
         }
-      }
-    };
+    }
 
-    checkSecurityAndNavigate();
-
-  }, [user, segments, rootNavigationState?.key, authInitialized]);
-
+  }, [user, authInitialized, isMaintenanceOn]); 
+  // 🔥 重点：这里去掉了 segments！
+  // 这样切换页面时不会重新运行逻辑，就不会卡顿或刷新了。
 
   const updateUserData = async (user, email) => {
     let res = await getUserData(user.id);
@@ -148,14 +145,7 @@ const MainLayout = () => {
       <Stack.Screen name="(main)/home" options={{ headerShown: false }} />
       <Stack.Screen name="(main)/editInterest" options={{ headerShown: false }} />
       <Stack.Screen name="postDetails" options={{ presentation: 'modal' }} />
-      
-      {/* NOTE: Staff folders (admin/moderator/counselor) do not need explicit 
-         Stack.Screens here if they are folders. Expo finds them automatically.
-      */}
-
-      {/* Make sure you create this file! */}
       <Stack.Screen name="maintenance" options={{ headerShown: false }} />
-
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="welcome" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
