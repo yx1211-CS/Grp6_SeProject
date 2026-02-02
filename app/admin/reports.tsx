@@ -111,7 +111,7 @@ export default function Reports() {
             .update({ reportstatus: 'Resolved' })
             .eq('reportedcontentid', reportId);
 
-          // ✅ LOG IT
+          // LOG IT
           await createLog("POST_REMOVED", `Deleted post ID ${postId} due to report`);
 
           fetchReports();
@@ -148,7 +148,7 @@ export default function Reports() {
             .update({ reportstatus: 'Resolved' })
             .eq('reportedcontentid', reportId);
 
-          // ✅ LOG IT
+          // LOG IT
           await createLog("USER_BANNED", `Banned author ID ${authorId} from report`);
 
           Alert.alert("Success", "User has been banned.");

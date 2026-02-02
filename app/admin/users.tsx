@@ -156,8 +156,6 @@ export default function Users() {
                         .from('account')
                         .update({ 
                             accountstatus: 'Deleted',
-                            // Optional: You can scramble their email if you want to free it up
-                            // email: `${user.accountid}@deleted.com` 
                         })
                         .eq('accountid', user.accountid);
 
