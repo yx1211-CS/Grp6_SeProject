@@ -41,7 +41,7 @@ export default function UserListMood() {
     <TouchableOpacity
       style={styles.userCard}
       onPress={() =>
-        // ✅ Correctly passing userId and userName to the history page
+        // passing userId and userName to the history page
         router.push({
           pathname: "/counselor/moodHistory",
           params: { userId: item.accountid, userName: item.username },

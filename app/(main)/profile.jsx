@@ -277,7 +277,7 @@ const UserHeader = ({
         pathname: '(main)/followList',
         params: { 
             userId: user?.accountid, 
-            type: type // 传进去是 'followers' 还是 'following'
+            type: type //  'followers' or'following'
         }
     });
   }
