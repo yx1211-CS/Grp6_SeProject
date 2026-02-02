@@ -45,15 +45,15 @@ const Home = () => {
       setPosts((prevPosts) => [newPost, ...prevPosts]);
     }
 
-    // 2. 处理删除 (DELETE)
+    // DELETE
     if (payload.eventType == "DELETE" && payload.old.postid) {
       setPosts((prevPosts) => {
-        // 过滤掉那个被删除 ID 的帖子
+        // filter deleted post
         return prevPosts.filter((post) => post.postid != payload.old.postid);
       });
     }
 
-    // 3. 处理更新 (UPDATE)
+    // UPDATE
     if (payload.eventType == "UPDATE" && payload.new.postid) {
       if (payload.new.ishidden === true) {
         setPosts((prevPosts) => {
@@ -65,20 +65,20 @@ const Home = () => {
 
       setPosts((prevPosts) => {
         return prevPosts.map((post) => {
-          // 找到那个被修改的帖子
+          // fund the edited post
           if (post.postid == payload.new.postid) {
             return {
-              ...post, // 保留原有的 user, reactions, replies 信息
-              postcontent: payload.new.postcontent, // 只更新文字
-              postfile: payload.new.postfile, // 只更新图片路径
+              ...post, 
+              postcontent: payload.new.postcontent, // only update text
+              postfile: payload.new.postfile, // picture lcoation
             };
           }
-          return post; // 其他帖子保持不变
+          return post; 
         });
       });
     }
 
-    //【新增：监听通知】
+    //notification
     if (payload.eventType === "INSERT" && payload.table === "notifications") {
       if (user && user.id && payload.new.receiverid === user.id) {
         setNotificationCount((prev) => prev + 1);
@@ -86,7 +86,7 @@ const Home = () => {
     }
   };
 
-  // 1. Subscription Effect (Runs once on Mount)
+  // Subscription Effect (Runs once on Mount)
   useEffect(() => {
     if (!user) return;
 
@@ -101,8 +101,8 @@ const Home = () => {
       )
       .subscribe();
 
-    // 🔥 2. 监听 Notifications (新增)
-    // ✅ 适配：receiverid
+    //  Notifications 
+    // receiverid
     const notificationChannel = supabase
       .channel("notifications")
       .on(
@@ -118,7 +118,7 @@ const Home = () => {
     };
   }, [user]);
 
-  // 2. Focus Effect (Runs whenever screen is visible)
+  //  Focus Effect (Runs whenever screen is visible)
   useFocusEffect(
     useCallback(() => {
       // A. Check Streak
@@ -183,8 +183,8 @@ const Home = () => {
             </Pressable>
 
             <Pressable onPress={() => {
-                setNotificationCount(0); // 点击后清零
-                router.push("notifications"); // 跳转
+                setNotificationCount(0); 
+                router.push("notifications"); 
               }}
             >
               <Icon
@@ -194,7 +194,7 @@ const Home = () => {
                 color={theme.colors.text}
               />
 
-              {/* 👇 如果有新通知，显示红点 */}
+              {/* got notification push red color */}
               {notificationCount > 0 && (
                 <View style={styles.pill}>
                   <Text style={styles.pillText}>{notificationCount}</Text>
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   streakText: {
     fontSize: hp(2.2),
     fontWeight: theme.fonts.bold,
-    color: theme.colors.primary, // Or hardcoded orange '#f91616fe'
+    color: theme.colors.primary, 
   },
   pill: {
     position: "absolute",

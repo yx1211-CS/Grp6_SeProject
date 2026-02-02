@@ -2,15 +2,15 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import ScreenWrapper from "../../components/ScreenWrapper";
@@ -20,7 +20,7 @@ import { supabase } from "../../lib/supabase";
 
 export default function ChatRoom() {
   const router = useRouter();
-  const { requestId } = useLocalSearchParams(); // Removed partnerName from params for anonymity
+  const { requestId } = useLocalSearchParams(); 
   const { user } = useAuth();
 
   const [messages, setMessages] = useState([]);

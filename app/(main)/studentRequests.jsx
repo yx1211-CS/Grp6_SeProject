@@ -114,7 +114,7 @@ export default function RequestHistory() {
 
     //Interaction Logic: Show chat only if task is active; show Accept button only for Helpers
     const showChat = item.status === "In Progress";
-    const showAccept = isHelper && item.status === "Assigned"; // Helper 且刚分配
+    const showAccept = isHelper && item.status === "Assigned";
 
     return (
       <View style={styles.card}>

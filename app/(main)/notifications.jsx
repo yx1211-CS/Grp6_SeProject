@@ -25,7 +25,6 @@ const Notifications = () => {
   }, [user]);
 
   const getNotifications = async () => {
-    // ✅ 适配：传入 user.id (如果你的 auth object 里是 accountid，请改用 user.accountid)
     if (!user) return;
     let res = await fetchNotifications(user.id);
     if (res.success) {
@@ -46,7 +45,6 @@ const Notifications = () => {
             return (
               <NotificationItem
                 item={item}
-                // ✅ 适配：你的主键叫 notificationid
                 key={item?.notificationid}
                 router={router}
               />

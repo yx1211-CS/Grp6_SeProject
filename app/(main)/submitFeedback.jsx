@@ -10,7 +10,7 @@ import { supabase } from '../../lib/supabase';
 export default function SubmitFeedback() {
     const { user } = useAuth();
     const router = useRouter();
-    const { requestId, helperId } = useLocalSearchParams(); // get task id
+    const { requestId} = useLocalSearchParams(); // get task id
     
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(false);

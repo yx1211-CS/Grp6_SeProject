@@ -120,7 +120,7 @@ export default function CounselorAssignment() {
   };
 
   /**
-   * 🔥 Calculates the number of "Active Tasks" for a helper
+   * Calculates the number of "Active Tasks" for a helper
    * Only tasks with status 'Assigned' or 'In Progress' contribute to workload
    */
   const getActiveTaskCount = (helper) => {

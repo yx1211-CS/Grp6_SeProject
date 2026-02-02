@@ -15,7 +15,7 @@ import ScreenWrapper from "../../components/ScreenWrapper";
 import { theme } from "../../constants/theme";
 import { hp, wp } from "../../helpers/common";
 
-// ✅ CORRECT IMPORT: Importing from userService where we added the function
+// CORRECT IMPORT: Importing from userService where we added the function
 import { getMoodHistory } from "../../services/userService";
 
 export default function CounselorMoodHistory() {

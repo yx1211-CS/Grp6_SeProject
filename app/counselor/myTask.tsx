@@ -37,7 +37,7 @@ export default function MyTasks() {
   const [submitting, setSubmitting] = useState(false);
   const [riskModalVisible, setRiskModalVisible] = useState(false);
   const [targetStudentId, setTargetStudentId] = useState(null);
-  // 2. 使用 useFocusEffect 确保每次页面回到前台都刷新数据
+  // Refresh datda
   useFocusEffect(
     useCallback(() => {
       if (user) fetchMyTasks();
@@ -45,6 +45,7 @@ export default function MyTasks() {
   );
 
   const getAvatarSource = (path) => {
+    // Helper function to resolve image URLs from Supabase storage
     if (!path) return null;
     if (path.startsWith("http")) return { uri: path };
     const { data } = supabase.storage.from("postimages").getPublicUrl(path);
@@ -52,10 +53,11 @@ export default function MyTasks() {
   };
 
   const fetchMyTasks = async () => {
+    // Primary data fetching logic
     try {
       setLoading(true);
 
-      const { data: currentAccount, error: authError } = await supabase
+      const { data: currentAccount, error: authError } = await supabase // Verify the user role before proceeding
         .from("account")
         .select("role")
         .eq("accountid", user.id)
@@ -66,7 +68,7 @@ export default function MyTasks() {
         router.replace("/home");
         return;
       }
-
+      // Build query to fetch help requests assigned to the helper
       let query = supabase
         .from("help_request")
         .select(
@@ -79,7 +81,7 @@ export default function MyTasks() {
         )
         .eq("assigned_helper_id", user.id)
         .order("created_at", { ascending: false });
-
+      // Filter query based on selected tab status
       if (activeTab === "Active Tasks") {
         query = query.eq("status", "Assigned");
       } else if (activeTab === "Your Tasks") {
@@ -104,8 +106,7 @@ export default function MyTasks() {
     fetchMyTasks();
   };
 
-  //button
-
+  // Update task status to In Progress and notify student
   const handleAccept = async (task) => {
     Alert.alert("Accept Task", "Start working on this case?", [
       { text: "Cancel", style: "cancel" },
@@ -136,7 +137,7 @@ export default function MyTasks() {
       },
     ]);
   };
-
+  // Return task to Pending status and remove assigned helper
   const handleReject = async (task) => {
     Alert.alert("Reject", "Return this task to pool?", [
       { text: "Cancel", style: "cancel" },
@@ -158,7 +159,7 @@ export default function MyTasks() {
       },
     ]);
   };
-
+  // Handle student risk level flagging
   const openRiskModal = (studentId) => {
     setTargetStudentId(studentId);
     setRiskModalVisible(true);
@@ -179,13 +180,13 @@ export default function MyTasks() {
       Alert.alert("Error", err.message);
     }
   };
-
+  // Prepare completion modal
   const handleComplete = (task) => {
     setSelectedTask(task);
     setReportContent("");
     setReportModalVisible(true);
   };
-
+  // Submit report record and mark task as Completed
   const submitReport = async () => {
     if (!reportContent.trim()) {
       Alert.alert("Required", "Please write a summary.");
@@ -321,7 +322,7 @@ export default function MyTasks() {
           </View>
         )}
 
-        {/* Tab 2: Your Tasks */}
+        {/* Your Tasks */}
         {activeTab === "Your Tasks" && (
           <View style={styles.btnRow}>
             {/* Chat */}
@@ -363,7 +364,7 @@ export default function MyTasks() {
           </View>
         )}
 
-        {/* Tab 3: History  */}
+        {/* History  */}
         {activeTab === "History" && (
           <View style={[styles.btnRow, { justifyContent: "flex-end" }]}>
             <Feather
@@ -392,7 +393,7 @@ export default function MyTasks() {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* 🔥 3 Tabs Header */}
+      {/* Tabs Header */}
       <View style={styles.tabsContainer}>
         {["Active Tasks", "Your Tasks", "History"].map((tab) => (
           <TouchableOpacity

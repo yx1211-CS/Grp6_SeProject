@@ -38,9 +38,7 @@ export default function PeerHelperApplication() {
     checkStatus();
   }, []);
 
-  /**
-   * Checks if the user is already a Peer Helper or has a pending application
-   */
+  // Checks if the user is already a Peer Helper or has a pending application
   const checkStatus = async () => {
     try {
       const {
@@ -48,8 +46,7 @@ export default function PeerHelperApplication() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Check current role in the Account table
-      // Ensure 'accountid' matches your specific schema (some use 'id')
+      // Check current role in the Account table
       const { data: account } = await supabase
         .from("account")
         .select("role")
@@ -62,8 +59,7 @@ export default function PeerHelperApplication() {
         return;
       }
 
-      // 2. Check for any 'Pending' applications in helper_application table
-      // Verify that column names (userid, helperstatus) match your DB schema exactly
+      // Check for any 'Pending' applications in helper_application table
       const { data: application } = await supabase
         .from("helper_application")
         .select("helperstatus")
@@ -81,9 +77,8 @@ export default function PeerHelperApplication() {
     }
   };
 
-  /**
-   * Handles form submission to the helper_application table
-   */
+  //Handles form submission to the helper_application table
+
   const handleSubmit = async () => {
     // Basic Input Validation
     if (!fullName.trim() || !studentId.trim() || !reason.trim()) {
@@ -108,7 +103,6 @@ export default function PeerHelperApplication() {
       if (!user) throw new Error("User session not found");
 
       // Insert data into helper_application table
-      // Ensure keys match your Supabase column names
       const { error } = await supabase.from("helper_application").insert({
         userid: user.id, // Foreign key to auth/account
         full_name: fullName, // Applicant's legal name

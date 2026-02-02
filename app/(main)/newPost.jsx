@@ -1,13 +1,12 @@
 import * as ImagePicker from 'expo-image-picker'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useRef, useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import Icon from '../../assets/icons'
 import ScreenWrapper from '../../components/ScreenWrapper'
 import { theme } from '../../constants/theme'
 import { useAuth } from '../../contexts/AuthContext'
 import { hp, wp } from '../../helpers/common'
-import { supabase } from '../../lib/supabase'
 import { getUserImageSource, uploadFile } from '../../services/imageService'
 import { createOrUpdatePost } from '../../services/postService'
 
@@ -23,7 +22,7 @@ const NewPost = () => {
     
 
 
-    // 打开相册
+    //choose picture
 const onPickImage = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({
             // FIX: Use a simple string array. 
@@ -41,17 +40,14 @@ const onPickImage = async () => {
 
 
     useEffect(() => {
-        // ✅ 检查 postid (而不是 id)
         if (post && post.postid) {
-            // ✅ 回填 postcontent (而不是 body)
             textRef.current = post.postcontent; 
-            // ✅ 回填 postfile (而不是 file)
             setFile(post.postfile || null);
 
         }
     }, []);
 
-    // 提交发布
+    // submit
     const onSubmit = async () => {
         if (!textRef.current && !file) {
             Alert.alert('Post', 'Please add some text or an image!');
@@ -62,10 +58,7 @@ const onPickImage = async () => {
 
         try {
             let postFile = null;
-
-            // 1. 如果有图，先上传图
             if (file) {
-                // 上传到 'postImages' 文件夹
                 let res = await uploadFile('postImages', file.uri, true);
                 if (res.success) {
                     postFile = res.data;
@@ -76,16 +69,13 @@ const onPickImage = async () => {
                 }
             }
 
-            // 2. 准备数据
+          
             let data = {
                 postcontent: textRef.current,
                 postfile: postFile,
-                // UPDATED: Using 'userid' to match your DB schema
-                // UPDATED: Using 'user.id' which is the standard Supabase Auth ID
                 userid: user?.id, 
             };
 
-            // ✅ 如果是编辑模式，必须带上 ID，这样 Supabase 才知道是 Update 还是 Insert
                 if (post && post.postid) {
                     data.postid = post.postid;
                 }
@@ -129,10 +119,7 @@ const onPickImage = async () => {
 
                 <ScrollView contentContainerStyle={{ gap: 20 }} showsVerticalScrollIndicator={false}>
                     <View style={styles.inputRow}>
-                        {/* FIX: If your user object has an image property (e.g. user.image), 
-                           use that instead of the hardcoded URL:
-                           uri: user?.image || 'https://...default...'
-                        */}
+                      
                         <Image
                             source={getUserImageSource(user?.profileimage)}
                             style={styles.avatar}
@@ -153,7 +140,6 @@ const onPickImage = async () => {
                         />
                     </View>
 
-                    {/* 图片预览区域 */}
                     {
                         file && (
                             <View style={styles.file}>
