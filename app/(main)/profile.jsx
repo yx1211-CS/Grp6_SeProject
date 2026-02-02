@@ -339,7 +339,7 @@ const UserHeader = ({
             </View>
           </View>
 
-          {/* --- FOLLOW & MOOD BUTTONS SECTION --- */}
+          {/* --- FOLLOW SECTION --- */}
           {!isOwnProfile && (
             <View style={styles.actionButtonsContainer}>
               <TouchableOpacity
@@ -360,14 +360,7 @@ const UserHeader = ({
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.actionButton, styles.moodButtonBase]}
-                onPress={openMoodHistory}
-              >
-                <Text style={[styles.followButtonText, styles.moodButtonText]}>
-                  Check Mood
-                </Text>
-              </TouchableOpacity>
+              
             </View>
           )}
 
@@ -403,8 +396,10 @@ const UserHeader = ({
             )}
 
               {/* 🔥 MOOD DISPLAY MOVED HERE (Below Interests) 🔥 */}
+            {(isOwnProfile || currentMood) && (
             <TouchableOpacity
               onPress={isOwnProfile ? onOpenMoodModal : openMoodHistory}
+              disabled={!isOwnProfile}
               activeOpacity={0.8}
               // Changed marginHorizontal to 0 so it fits the info column width
               style={[
@@ -448,6 +443,7 @@ const UserHeader = ({
                 )}
               </View>
             </TouchableOpacity>
+            )}
             {/* ------------------------------------- */}
           </View>
 
