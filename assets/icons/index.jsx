@@ -27,6 +27,7 @@ import User from "./User";
 import Video from "./Video";
 import ExclamationCircle from './ExclamationCircle';
 import Sync from './Sync';
+import ArrowDown from './ArrowDown';
 
 const icons = {
   home: Home,
@@ -43,6 +44,7 @@ const icons = {
   edit: Edit,
   arrowLeft: ArrowLeft,
   arrowRight: ArrowRight,
+  arrowDown: ArrowDown,
   threeDotsCircle: ThreeDotsCircle,
   threeDotsHorizontal: ThreeDotsHorizontal,
   comment: Comment,

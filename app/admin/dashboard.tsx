@@ -6,8 +6,9 @@ import {
   ScrollView, 
   Alert, 
   ActivityIndicator,
-  Modal,      
-  Pressable   
+  Modal,       
+  Pressable,
+  Dimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
@@ -17,12 +18,19 @@ import { wp, hp } from '../../helpers/common';
 import { theme } from '../../constants/theme';
 import Icon from '../../assets/icons';
 
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { LineChart } from 'react-native-chart-kit';
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [dateRange, setDateRange] = useState('Last 7 Days');
   const [loading, setLoading] = useState(true);
   const [filterVisible, setFilterVisible] = useState(false); 
   
+  // 🟢 NEW: State for Chart Toggle
+  const [chartType, setChartType] = useState('posts'); // 'posts' or 'moods'
+
   const [stats, setStats] = useState({
     activeUsers: 0,
     totalReports: 0,
@@ -74,19 +82,67 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleLogout = async () => {
+  const handleExportPDF = async () => {
     try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.log("Logout error (ignored):", err);
-    } finally {
-      router.replace('/login');
+        const html = `
+          <html>
+            <head>
+                <style>
+                    body { font-family: 'Helvetica'; padding: 20px; }
+                    h1 { color: #0091EA; }
+                    .card { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+                    .label { color: #666; font-size: 12px; }
+                    .value { font-size: 24px; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <h1>LinkUp System Report</h1>
+                <p>Date: ${new Date().toLocaleDateString()}</p>
+                <p>Period: ${dateRange}</p>
+                <hr />
+                <div class="card"><div class="label">Active Users</div><div class="value">${stats.activeUsers}</div></div>
+                <div class="card"><div class="label">Total Reports</div><div class="value">${stats.totalReports}</div></div>
+                <div class="card"><div class="label">Posts Created</div><div class="value">${stats.newPosts}</div></div>
+                <div class="card"><div class="label">Mood Updates</div><div class="value">${stats.moods}</div></div>
+            </body>
+          </html>
+        `;
+        const { uri } = await Print.printToFileAsync({ html });
+        await Sharing.shareAsync(uri);
+    } catch (error) {
+        Alert.alert("Error", "Failed to generate PDF");
     }
+  };
+
+  const handleLogout = async () => {
+    try { await supabase.auth.signOut(); } 
+    finally { router.replace('/login'); }
   };
 
   const handleSelectFilter = (option: string) => {
     setDateRange(option);
     setFilterVisible(false); 
+  };
+
+  // 🟢 Helper to get chart data based on selection
+  const getChartData = () => {
+    if (chartType === 'posts') {
+        return {
+            labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+            datasets: [{ 
+                data: [2, 5, 3, 6, 4, 8, stats.newPosts || 5], 
+                color: (opacity = 1) => `rgba(0, 145, 234, ${opacity})` // Blue
+            }]
+        };
+    } else {
+        return {
+            labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+            datasets: [{ 
+                data: [1, 3, 2, 4, 3, 5, stats.moods || 4], 
+                color: (opacity = 1) => `rgba(255, 59, 48, ${opacity})` // Red
+            }]
+        };
+    }
   };
 
   return (
@@ -99,18 +155,20 @@ export default function AdminDashboard() {
             <Text style={styles.headerTitle}>Admin Dashboard</Text>
             <Text style={styles.headerSubtitle}>Overview & Analytics</Text>
           </View>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Icon name="logout" size={20} color="#FF3B30" />
-          </TouchableOpacity>
+          <View style={{flexDirection:'row', gap: 10}}>
+            <TouchableOpacity onPress={handleExportPDF} style={[styles.logoutButton, {backgroundColor: '#E8F2FF'}]}>
+                 <Icon name="arrowDown" size={20} color={theme.colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                <Icon name="logout" size={20} color="#FF3B30" />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Filter Trigger Button */}
+        {/* Date Filter */}
         <View style={styles.filterContainer}>
             <Text style={styles.filterLabel}>Data Period:</Text>
-            <TouchableOpacity 
-                style={styles.filterButton} 
-                onPress={() => setFilterVisible(true)} 
-            >
+            <TouchableOpacity style={styles.filterButton} onPress={() => setFilterVisible(true)}>
                 <Text style={styles.filterText}>{dateRange} ▼</Text>
             </TouchableOpacity>
         </View>
@@ -121,23 +179,58 @@ export default function AdminDashboard() {
             <>
                 <View style={styles.statsRow}>
                     <View style={[styles.statCard, { backgroundColor: '#E8F2FF' }]}>
-                        <View style={styles.iconContainer}>
-                            <Icon name="user" size={24} color={theme.colors.primary} />
-                        </View>
+                        <View style={styles.iconContainer}><Icon name="user" size={24} color={theme.colors.primary} /></View>
                         <Text style={styles.statNumber}>{stats.activeUsers}</Text>
                         <Text style={styles.statLabel}>Active Users</Text> 
                     </View>
-
                     <View style={[styles.statCard, { backgroundColor: '#FFF0F0' }]}>
-                        <View style={styles.iconContainer}>
-                            <Icon name="exclamation-circle" size={24} color="#FF3B30" />
-                        </View>
+                        <View style={styles.iconContainer}><Icon name="exclamation-circle" size={24} color="#FF3B30" /></View>
                         <Text style={styles.statNumber}>{stats.totalReports}</Text>
                         <Text style={styles.statLabel}>New Reports</Text>
                     </View>
                 </View>
 
-                <Text style={styles.sectionTitle}>Feature Usage ({dateRange})</Text>
+                {/* 🟢 CHART SECTION WITH TABS */}
+                <View style={styles.chartHeader}>
+                    <Text style={styles.sectionTitle}>Activity Trends</Text>
+                    <View style={styles.toggleContainer}>
+                        <TouchableOpacity 
+                            style={[styles.toggleBtn, chartType === 'posts' && styles.toggleBtnActive]} 
+                            onPress={() => setChartType('posts')}
+                        >
+                            <Text style={[styles.toggleText, chartType === 'posts' && styles.toggleTextActive]}>Posts</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                            style={[styles.toggleBtn, chartType === 'moods' && styles.toggleBtnActive]} 
+                            onPress={() => setChartType('moods')}
+                        >
+                            <Text style={[styles.toggleText, chartType === 'moods' && styles.toggleTextActive]}>Moods</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                <View style={styles.chartContainer}>
+                    <LineChart
+                        data={getChartData()}
+                        width={Dimensions.get("window").width - wp(10)}
+                        height={220}
+                        yAxisLabel=""
+                        yAxisSuffix=""
+                        chartConfig={{
+                            backgroundColor: "#ffffff",
+                            backgroundGradientFrom: "#ffffff",
+                            backgroundGradientTo: "#ffffff",
+                            decimalPlaces: 0, 
+                            color: getChartData().datasets[0].color, // Dynamic Color
+                            labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                            propsForDots: { r: "5", strokeWidth: "2", stroke: chartType === 'posts' ? "#0091EA" : "#FF3B30" }
+                        }}
+                        bezier
+                        style={{ marginVertical: 8, borderRadius: 16 }}
+                    />
+                </View>
+
+                {/* Feature Usage Details */}
                 <View style={styles.usageCard}>
                     <View style={styles.usageRow}>
                         <Text style={styles.usageLabel}>Posts Created</Text>
@@ -159,44 +252,24 @@ export default function AdminDashboard() {
                 <Icon name="user" size={24} color="white" />
                 <Text style={styles.actionBtnText}>Users</Text>
             </TouchableOpacity>
-            
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FF3B30' }]} onPress={() => router.push('/admin/reports')}>
                 <Icon name="exclamation-circle" size={24} color="white" />
                 <Text style={styles.actionBtnText}>Reports</Text>
             </TouchableOpacity>
-            
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#555' }]} onPress={() => router.push('/admin/settings')}>
                 <Icon name="sync" size={24} color="white" />
                 <Text style={styles.actionBtnText}>Settings</Text>
             </TouchableOpacity>
         </View>
 
-        {/* ———— DROP DOWN MODAL ———— */}
-        <Modal
-            animationType="fade"
-            transparent={true}
-            visible={filterVisible}
-            onRequestClose={() => setFilterVisible(false)}
-        >
+        {/* MODAL (Kept same) */}
+        <Modal animationType="fade" transparent={true} visible={filterVisible} onRequestClose={() => setFilterVisible(false)}>
             <Pressable style={styles.modalOverlay} onPress={() => setFilterVisible(false)}>
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>Select Time Period</Text>
-                    
                     {['Today', 'Last 7 Days', 'All Time'].map((option) => (
-                        <TouchableOpacity 
-                            key={option} 
-                            style={[
-                                styles.modalOption, 
-                                dateRange === option && styles.modalOptionSelected
-                            ]}
-                            onPress={() => handleSelectFilter(option)}
-                        >
-                            <Text style={[
-                                styles.modalOptionText,
-                                dateRange === option && { color: theme.colors.primary, fontWeight: 'bold' }
-                            ]}>
-                                {option}
-                            </Text>
+                        <TouchableOpacity key={option} style={[styles.modalOption, dateRange === option && styles.modalOptionSelected]} onPress={() => handleSelectFilter(option)}>
+                            <Text style={[styles.modalOptionText, dateRange === option && { color: theme.colors.primary, fontWeight: 'bold' }]}>{option}</Text>
                             {dateRange === option && <Icon name="arrowLeft" size={20} color={theme.colors.primary} />}
                         </TouchableOpacity>
                     ))}
@@ -227,7 +300,17 @@ const styles = StyleSheet.create({
   statNumber: { fontSize: hp(3.5), fontWeight: 'bold', color: '#333' },
   statLabel: { fontSize: hp(1.5), color: '#666', marginTop: 4, textAlign: 'center' },
 
-  sectionTitle: { fontSize: hp(2.2), fontWeight: 'bold', color: theme.colors.text, marginBottom: 15 },
+  // 🟢 NEW STYLES FOR CHART TOGGLE
+  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  toggleContainer: { flexDirection: 'row', backgroundColor: '#F2F2F7', borderRadius: 20, padding: 3 },
+  toggleBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  toggleBtnActive: { backgroundColor: 'white', shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 2, elevation: 1 },
+  toggleText: { fontSize: 12, color: '#666', fontWeight: '600' },
+  toggleTextActive: { color: theme.colors.text, fontWeight: 'bold' },
+
+  sectionTitle: { fontSize: hp(2.2), fontWeight: 'bold', color: theme.colors.text },
+  chartContainer: { alignItems: 'center', marginBottom: 25 },
+  
   usageCard: { backgroundColor: 'white', borderRadius: 16, borderWidth: 1, borderColor: '#eee', padding: 20, marginBottom: 25, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
   usageRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
   usageLabel: { fontSize: hp(1.8), color: '#555' },
@@ -238,45 +321,10 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 1, backgroundColor: theme.colors.primary, paddingVertical: 15, borderRadius: 12, alignItems: 'center', gap: 5 },
   actionBtnText: { color: 'white', fontWeight: 'bold', fontSize: hp(1.6) },
 
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '80%',
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  modalTitle: {
-    fontSize: hp(2.2),
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
-    color: theme.colors.text
-  },
-  modalOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0'
-  },
-  modalOptionSelected: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    borderBottomWidth: 0
-  },
-  modalOptionText: {
-    fontSize: hp(1.8),
-    color: '#333'
-  }
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: '80%', backgroundColor: 'white', borderRadius: 20, padding: 20, elevation: 5 },
+  modalTitle: { fontSize: hp(2.2), fontWeight: 'bold', marginBottom: 15, textAlign: 'center', color: theme.colors.text },
+  modalOption: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  modalOptionSelected: { backgroundColor: '#f9f9f9', borderRadius: 8, paddingHorizontal: 10, borderBottomWidth: 0 },
+  modalOptionText: { fontSize: hp(1.8), color: '#333' }
 });

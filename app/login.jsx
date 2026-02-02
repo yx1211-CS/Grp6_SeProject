@@ -43,6 +43,22 @@ const Login = () => {
 
     setLoading(true);
 
+    try {
+      const { data: maintenanceFlag } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('title', 'MAINTENANCE_ON') // Looking for the "Flag"
+        .maybeSingle(); // Returns null if not found (instead of error)
+
+      if (maintenanceFlag) {
+        setLoading(false);
+        router.push('/maintenance'); // Block user & Redirect
+        return;
+      }
+    } catch (err) {
+      console.log("Maintenance Check Error:", err);
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
