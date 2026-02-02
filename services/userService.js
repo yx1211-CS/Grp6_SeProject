@@ -217,6 +217,61 @@ export const getFollowCounts = async (userId) => {
   }
 };
 
+export const getFollowersList = async (userId) => {
+    try {
+        // Query the 'follower' table, but join with the 'account' table (aliased as user)
+        // We want the details of the 'follower_id' (the person doing the following)
+        const { data, error } = await supabase
+            .from('follower')
+            .select(`
+                follower_id,
+                user:follower_id (
+                    accountid,
+                    username,
+                    profileimage,
+                    bio
+                )
+            `)
+            .eq('following_id', userId);
+
+        if (error) throw error;
+        
+        // Flatten: Extract the 'user' object from the result
+        const formattedData = data.map(item => item.user);
+        return { success: true, data: formattedData };
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
+
+export const getFollowingList = async (userId) => {
+    try {
+        // Query the 'follower' table, but join with the 'account' table (aliased as user)
+        // We want the details of the 'following_id' (the person being followed)
+        const { data, error } = await supabase
+            .from('follower')
+            .select(`
+                following_id,
+                user:following_id (
+                    accountid,
+                    username,
+                    profileimage,
+                    bio
+                )
+            `)
+            .eq('follower_id', userId);
+
+        if (error) throw error;
+
+        // Flatten: Extract the 'user' object from the result
+        const formattedData = data.map(item => item.user);
+        return { success: true, data: formattedData };
+    } catch (error) {
+        return { success: false, msg: error.message };
+    }
+}
+
 //Find similar interest friends
 export const getUsersWithSimilarInterests = async (currentUserId) => {
   try {
@@ -232,25 +287,10 @@ export const getUsersWithSimilarInterests = async (currentUserId) => {
 
     const interestIds = myInterests.map((i) => i.interestid);
 
-    // 🔥 STEP 2: 获取我已经关注的人 (查 follower 表)
-    // 逻辑：我是 follower，我要找出我正在 following 谁
-    //const { data: followingList, error: followError } = await supabase
-    //    .from('follower')
-    //    .select('following_id')
-    //    .eq('follower_id', currentUserId);
-    //if (followError) throw followError;
 
-    // 创建一个排除名单 Set
     const excludeIds = new Set();
-    excludeIds.add(currentUserId); // 排除我自己
+    excludeIds.add(currentUserId); 
 
-    // 把我关注的人的 ID 都加进去
-    //followingList.forEach(item => {
-    //    excludeIds.add(item.following_id);
-    //});
-
-    // STEP 3: 寻找有相同兴趣的其他用户
-    // (这部分逻辑不变，但现在排除了已关注的人)
     const { data: matches, error: matchError } = await supabase
       .from("user_interest")
       .select(
@@ -270,13 +310,13 @@ export const getUsersWithSimilarInterests = async (currentUserId) => {
 
     if (matchError) throw matchError;
 
-    // STEP 4: 去重和过滤
+   
     const uniqueUsers = {};
 
     matches.forEach((match) => {
       const user = match.user;
 
-      // 如果用户不存在，或者已经在排除名单里(已关注)，就跳过
+      
       if (!user || excludeIds.has(user.accountid)) return;
 
       if (!uniqueUsers[user.accountid]) {
@@ -295,8 +335,6 @@ export const getUsersWithSimilarInterests = async (currentUserId) => {
   }
 };
 
-// 🔥 新增这个辅助函数：获取我正在关注的所有人 ID
-// 这样前端页面加载时，就可以知道谁已经是 "Following" 状态了
 export const getUserFollowingList = async (userId) => {
   try {
     const { data, error } = await supabase
@@ -306,7 +344,6 @@ export const getUserFollowingList = async (userId) => {
 
     if (error) throw error;
 
-    // 返回一个纯 ID 数组: ['user_id_1', 'user_id_2']
     return { success: true, data: data.map((item) => item.following_id) };
   } catch (error) {
     console.log("getUserFollowingList error:", error);
@@ -330,7 +367,7 @@ export const getUserInterests = async (userId) => {
       return { success: false, data: [] };
     }
 
-    // Transform data from [{interest: {interestname: 'Coding'}}] to ['Coding']
+    
     const formattedInterests = data
       .map((item) => item.interest?.interestname)
       .filter(Boolean);

@@ -130,7 +130,6 @@ export default function AdminDashboard() {
 
                     <View style={[styles.statCard, { backgroundColor: '#FFF0F0' }]}>
                         <View style={styles.iconContainer}>
-                            {/* CHANGED: Report Icon */}
                             <Icon name="exclamation-circle" size={24} color="#FF3B30" />
                         </View>
                         <Text style={styles.statNumber}>{stats.totalReports}</Text>
@@ -162,13 +161,11 @@ export default function AdminDashboard() {
             </TouchableOpacity>
             
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FF3B30' }]} onPress={() => router.push('/admin/reports')}>
-                {/* CHANGED: Report Icon */}
                 <Icon name="exclamation-circle" size={24} color="white" />
                 <Text style={styles.actionBtnText}>Reports</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#555' }]} onPress={() => router.push('/admin/settings')}>
-                {/* CHANGED: Settings Icon */}
                 <Icon name="sync" size={24} color="white" />
                 <Text style={styles.actionBtnText}>Settings</Text>
             </TouchableOpacity>

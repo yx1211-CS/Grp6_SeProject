@@ -88,7 +88,6 @@ const AdminLogin = () => {
           <Input
             icon={<Icon name="mail" size={26} strokeWidth={1.6} />}
             placeholder="Admin Email"
-            // FIXED: Added type annotation
             onChangeText={(value: string) => (emailRef.current = value)}
           />
 
@@ -96,11 +95,9 @@ const AdminLogin = () => {
             icon={<Icon name="lock" size={26} strokeWidth={1.6} />}
             placeholder="Password"
             secureTextEntry
-            // FIXED: Added type annotation
             onChangeText={(value: string) => (passwordRef.current = value)}
           />
 
-          {/* FIXED: Added required props buttonStyle and textStyle */}
           <Button 
             title={"Access Dashboard"} 
             loading={loading} 
@@ -120,14 +117,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, gap: 45, paddingHorizontal: wp(5) },
   welcomeText: { 
     fontSize: hp(4), 
-    // FIXED: Cast to 'any' or TextStyle['fontWeight'] to solve the literal type error
     fontWeight: theme.fonts.bold as any, 
     color: theme.colors.text 
   },
   subText: { 
     fontSize: hp(2), 
     color: theme.colors.textLight, 
-    // FIXED: Cast to 'any'
     fontWeight: theme.fonts.medium as any 
   },
   form: { gap: 25 },
