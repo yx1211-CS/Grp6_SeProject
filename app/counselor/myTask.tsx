@@ -22,8 +22,6 @@ import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { createNotification } from "../../services/notificationService";
 
-;
-
 export default function MyTasks() {
   const router = useRouter();
   const { user } = useAuth();
@@ -64,10 +62,7 @@ export default function MyTasks() {
         .single();
 
       if (currentAccount?.role !== "PeerHelper") {
-        Alert.alert(
-          "Access Denied",
-          "Your Peer Helper status has been revoked.",
-        );
+        Alert.alert("Access Denied", "Your are not a Peer Helper.");
         router.replace("/home");
         return;
       }
