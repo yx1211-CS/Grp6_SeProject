@@ -8,9 +8,9 @@ import { supabase } from "../lib/supabase";
 export const getUserData = async (userId) => {
   try {
     const { data, error } = await supabase
-      .from("account") // <--- 你的用户表叫 account
+      .from("account")
       .select("*")
-      .eq("accountid", userId) // <--- 你的ID字段叫 accountID
+      .eq("accountid", userId) //
       .single();
 
     if (error) {
@@ -218,12 +218,13 @@ export const getFollowCounts = async (userId) => {
 };
 
 export const getFollowersList = async (userId) => {
-    try {
-        // Query the 'follower' table, but join with the 'account' table (aliased as user)
-        // We want the details of the 'follower_id' (the person doing the following)
-        const { data, error } = await supabase
-            .from('follower')
-            .select(`
+  try {
+    // Query the 'follower' table, but join with the 'account' table (aliased as user)
+    // We want the details of the 'follower_id' (the person doing the following)
+    const { data, error } = await supabase
+      .from("follower")
+      .select(
+        `
                 follower_id,
                 user:follower_id (
                     accountid,
@@ -231,27 +232,28 @@ export const getFollowersList = async (userId) => {
                     profileimage,
                     bio
                 )
-            `)
-            .eq('following_id', userId);
+            `,
+      )
+      .eq("following_id", userId);
 
-        if (error) throw error;
-        
-        // Flatten: Extract the 'user' object from the result
-        const formattedData = data.map(item => item.user);
-        return { success: true, data: formattedData };
-    } catch (error) {
-        return { success: false, msg: error.message };
-    }
-}
+    if (error) throw error;
 
+    // Flatten: Extract the 'user' object from the result
+    const formattedData = data.map((item) => item.user);
+    return { success: true, data: formattedData };
+  } catch (error) {
+    return { success: false, msg: error.message };
+  }
+};
 
 export const getFollowingList = async (userId) => {
-    try {
-        // Query the 'follower' table, but join with the 'account' table (aliased as user)
-        // We want the details of the 'following_id' (the person being followed)
-        const { data, error } = await supabase
-            .from('follower')
-            .select(`
+  try {
+    // Query the 'follower' table, but join with the 'account' table (aliased as user)
+    // We want the details of the 'following_id' (the person being followed)
+    const { data, error } = await supabase
+      .from("follower")
+      .select(
+        `
                 following_id,
                 user:following_id (
                     accountid,
@@ -259,18 +261,19 @@ export const getFollowingList = async (userId) => {
                     profileimage,
                     bio
                 )
-            `)
-            .eq('follower_id', userId);
+            `,
+      )
+      .eq("follower_id", userId);
 
-        if (error) throw error;
+    if (error) throw error;
 
-        // Flatten: Extract the 'user' object from the result
-        const formattedData = data.map(item => item.user);
-        return { success: true, data: formattedData };
-    } catch (error) {
-        return { success: false, msg: error.message };
-    }
-}
+    // Flatten: Extract the 'user' object from the result
+    const formattedData = data.map((item) => item.user);
+    return { success: true, data: formattedData };
+  } catch (error) {
+    return { success: false, msg: error.message };
+  }
+};
 
 //Find similar interest friends
 export const getUsersWithSimilarInterests = async (currentUserId) => {
@@ -287,9 +290,8 @@ export const getUsersWithSimilarInterests = async (currentUserId) => {
 
     const interestIds = myInterests.map((i) => i.interestid);
 
-
     const excludeIds = new Set();
-    excludeIds.add(currentUserId); 
+    excludeIds.add(currentUserId);
 
     const { data: matches, error: matchError } = await supabase
       .from("user_interest")
@@ -310,13 +312,11 @@ export const getUsersWithSimilarInterests = async (currentUserId) => {
 
     if (matchError) throw matchError;
 
-   
     const uniqueUsers = {};
 
     matches.forEach((match) => {
       const user = match.user;
 
-      
       if (!user || excludeIds.has(user.accountid)) return;
 
       if (!uniqueUsers[user.accountid]) {
@@ -367,7 +367,6 @@ export const getUserInterests = async (userId) => {
       return { success: false, data: [] };
     }
 
-    
     const formattedInterests = data
       .map((item) => item.interest?.interestname)
       .filter(Boolean);
