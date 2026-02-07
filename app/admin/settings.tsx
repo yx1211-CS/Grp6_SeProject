@@ -20,7 +20,7 @@ import { wp, hp } from '../../helpers/common';
 import { theme } from '../../constants/theme';
 import Icon from '../../assets/icons';
 
-// 🟢 LEGACY IMPORT FIX (For Backup)
+// LEGACY IMPORT FIX (For Backup)
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as MailComposer from 'expo-mail-composer';
@@ -41,7 +41,7 @@ export default function Settings() {
   }, []);
 
   // ——————————————————————————————————————————————————————————
-  // 🟢 1. FETCH SETTINGS (Using Notification Hack)
+  // 1. FETCH SETTINGS (Using Notification Hack)
   // ——————————————————————————————————————————————————————————
   const fetchSettings = async () => {
     try {
@@ -81,7 +81,7 @@ export default function Settings() {
   };
 
   // ——————————————————————————————————————————————————————————
-  // 🟢 2. TOGGLE MAINTENANCE (Using Notification Hack)
+  // 2. TOGGLE MAINTENANCE (Using Notification Hack)
   // ——————————————————————————————————————————————————————————
   const toggleMaintenance = async (currentValue: boolean) => {
     const newValue = !currentValue;

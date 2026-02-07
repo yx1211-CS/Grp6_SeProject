@@ -28,7 +28,6 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [filterVisible, setFilterVisible] = useState(false); 
   
-  // 🟢 NEW: State for Chart Toggle
   const [chartType, setChartType] = useState('posts'); // 'posts' or 'moods'
 
   const [stats, setStats] = useState({
@@ -124,7 +123,7 @@ export default function AdminDashboard() {
     setFilterVisible(false); 
   };
 
-  // 🟢 Helper to get chart data based on selection
+  // Helper to get chart data based on selection
   const getChartData = () => {
     if (chartType === 'posts') {
         return {
@@ -190,7 +189,7 @@ export default function AdminDashboard() {
                     </View>
                 </View>
 
-                {/* 🟢 CHART SECTION WITH TABS */}
+                {/* CHART SECTION WITH TABS */}
                 <View style={styles.chartHeader}>
                     <Text style={styles.sectionTitle}>Activity Trends</Text>
                     <View style={styles.toggleContainer}>
@@ -300,7 +299,7 @@ const styles = StyleSheet.create({
   statNumber: { fontSize: hp(3.5), fontWeight: 'bold', color: '#333' },
   statLabel: { fontSize: hp(1.5), color: '#666', marginTop: 4, textAlign: 'center' },
 
-  // 🟢 NEW STYLES FOR CHART TOGGLE
+  // NEW STYLES FOR CHART TOGGLE
   chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   toggleContainer: { flexDirection: 'row', backgroundColor: '#F2F2F7', borderRadius: 20, padding: 3 },
   toggleBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
